@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Swellendam Municipality • ArcGIS Demo</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.30/"></script>
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    .grid-pattern {
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .glass{
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(14px);
+      border-radius: 22px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    }
+    #viewDiv{
+      width: 100%;
+      height: calc(100vh - 64px);
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.10);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .btn{
+      border-radius: 16px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      transition: 150ms ease;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.92);
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); }
+    .btn:active{ transform: scale(.99); }
+    .btn-primary{
+      background: white;
+      color: #0b1220;
+      border-color: rgba(255,255,255,.30);
+    }
+    .btn-primary:hover{ background:#f1f5f9; }
+    .btn-danger{
+      background: rgba(239,68,68,.85);
+      border-color: rgba(239,68,68,.4);
+      color: white;
+    }
+    .btn-danger:hover{ background: rgba(239,68,68,.95); }
+    .help-text{ color: rgba(255,255,255,.62); font-size: 12px; }
+    .mini-label{ color: rgba(255,255,255,.60); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .mini-value{ color: rgba(255,255,255,.92); font-size: 12px; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white grid-pattern">
+
+  <div class="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="assets/logo.png" alt="Municipality Logo" class="w-10 h-10 rounded-xl bg-white p-2"/>
+        <div class="leading-tight">
+          <div class="font-semibold">Swellendam Municipality</div>
+          <div class="text-xs text-white/60">Offline Drone Basemap • Step 1 Boundary → Step 2 Plots → Step 4 Save Grave Coords</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="dashboard.html" class="btn">← Back to dashboard</a>
+        <button id="btnMeeting" class="btn">🎤 Meeting Mode: Off</button>
+        <button id="btnClear" class="btn btn-danger">Clear demo data</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-[1600px] mx-auto px-4 py-4">
+    <div class="relative">
+      <div id="viewDiv"></div>
+
+      <div class="glass absolute top-4 left-4 w-[380px] max-w-[92vw] p-4">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <div class="text-lg font-extrabold">Guided setup</div>
+            <div class="help-text mt-1">Step 1 first. Step 2 unlocks after boundary is saved.</div>
+          </div>
+          <button id="btnToggle" class="btn px-3 py-2 text-xs">Hide</button>
+        </div>
+
+        <div id="panelBody" class="mt-4 space-y-3">
+          <div class="glass p-3">
+            <div class="text-xs text-white/60">Step 1</div>
+            <div class="font-semibold">Draw cemetery boundary</div>
+            <div class="help-text">Trace the cemetery outline (polygon).</div>
+            <button id="btnBoundary" class="btn btn-primary mt-2 w-full">Draw Boundary</button>
+            <div id="step1State" class="help-text mt-2">Status: <b class="text-white">Not done</b></div>
+          </div>
+
+          <div class="glass p-3">
+            <div class="text-xs text-white/60">Step 2</div>
+            <div class="font-semibold">Draw plots / graves</div>
+            <div class="help-text">Draw individual plot polygons.</div>
+            <button id="btnPlot" class="btn mt-2 w-full opacity-50 cursor-not-allowed" disabled>Draw Plot</button>
+            <div id="step2State" class="help-text mt-2">Status: <b class="text-white">Locked</b></div>
+          </div>
+
+          <div class="glass p-3">
+            <div class="text-xs text-white/60">Step 3</div>
+            <div class="font-semibold">Click plot → get centroid</div>
+            <div class="help-text">Click a plot polygon. We’ll calculate its centroid for saving.</div>
+            <div class="mt-2 grid grid-cols-2 gap-3">
+              <div>
+                <div class="mini-label">Selected plot</div>
+                <div id="selectedPlot" class="mini-value">—</div>
+              </div>
+              <div>
+                <div class="mini-label">Centroid (Lat, Lng)</div>
+                <div id="selectedCentroid" class="mini-value">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass p-3">
+            <div class="text-xs text-white/60">Step 4</div>
+            <div class="font-semibold">Save grave coordinate</div>
+            <div class="help-text">After selecting a plot, click “Save Grave Coordinate”.</div>
+
+            <div class="mt-2 flex gap-2 flex-wrap">
+              <button id="btnSaveGrave" class="btn btn-primary">➕ Save Grave Coordinate</button>
+              <button id="btnCopy" class="btn">Copy coords</button>
+              <button id="btnExport" class="btn">⬇️ Export CSV</button>
+              <button id="btnClearRegister" class="btn btn-danger">Clear Register</button>
+            </div>
+
+            <div class="help-text mt-3">Saved graves (demo register):</div>
+            <div id="graveList" class="mt-2 max-h-[220px] overflow-auto text-xs text-white/80 space-y-2"></div>
+          </div>
+
+          <div id="msg" class="text-sm"></div>
+          <div class="help-text">Demo storage: browser localStorage (no ArcGIS login needed).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- UI message ----------
+    const msgEl = document.getElementById("msg");
+    function setMsg(ok, text) {
+      msgEl.innerHTML = ok
+        ? `<span class="text-emerald-300 font-medium">${text}</span>`
+        : `<span class="text-red-300 font-medium">${text}</span>`;
+    }
+
+    // ============================
+    // ✅ Send polygon to dashboard
+    // ============================
+    function sendPolygonToDashboard(geom, meta = {}) {
+      try {
+        if (!geom) return;
+        if (geom.type !== "polygon" || !Array.isArray(geom.rings) || !geom.rings.length) return;
+
+        const ring = geom.rings[0] || [];
+        if (ring.length < 3) return;
+
+        // ArcGIS ring: [lng,lat] -> dashboard expects [lat,lng]
+        const coordsLatLng = ring.map(pt => ([
+          Number(Number(pt[1]).toFixed(6)), // lat
+          Number(Number(pt[0]).toFixed(6))  // lng
+        ]));
+
+        window.parent.postMessage(
+          { type: "GIS_POLYGON", coords: coordsLatLng, meta },
+          "*"
+        );
+
+        console.log("📨 Sent GIS_POLYGON to dashboard:", meta, coordsLatLng);
+      } catch (e) {
+        console.warn("sendPolygonToDashboard failed:", e);
+      }
+    }
+
+    window.addEventListener("error", (e) => {
+      setMsg(false, "JS Error: " + (e?.message || "unknown"));
+      console.error(e);
+    });
+
+    // ---------- Left panel toggle ----------
+    const btnToggle = document.getElementById("btnToggle");
+    const panelBody = document.getElementById("panelBody");
+    let panelOpen = true;
+    btnToggle.addEventListener("click", () => {
+      panelOpen = !panelOpen;
+      panelBody.classList.toggle("hidden", !panelOpen);
+      btnToggle.textContent = panelOpen ? "Hide" : "Show";
+    });
+
+    // ---------- Storage keys ----------
+    const STORE_FEATURES = "cemetery_arcgis_demo_features_v4";
+    const STORE_GRAVES   = "cemetery_arcgis_demo_graves_v4";
+
+    function loadStored(key) {
+      try { return JSON.parse(localStorage.getItem(key) || "[]"); }
+      catch { return []; }
+    }
+    function saveStored(key, data) {
+      localStorage.setItem(key, JSON.stringify(data || []));
+    }
+    function clearStored(key) {
+      localStorage.removeItem(key);
+    }
+
+    // ---------- Step locks ----------
+    const step1State = document.getElementById("step1State");
+    const step2State = document.getElementById("step2State");
+    const btnPlot = document.getElementById("btnPlot");
+
+    function setStep1Done(done) {
+      step1State.innerHTML = `Status: <b class="text-white">${done ? "Done ✅" : "Not done"}</b>`;
+      if (done) {
+        btnPlot.disabled = false;
+        btnPlot.classList.remove("opacity-50","cursor-not-allowed");
+        step2State.innerHTML = `Status: <b class="text-white">Unlocked ✅</b>`;
+      } else {
+        btnPlot.disabled = true;
+        btnPlot.classList.add("opacity-50","cursor-not-allowed");
+        step2State.innerHTML = `Status: <b class="text-white">Locked</b>`;
+      }
+    }
+
+    // ---------- Step 3+4 UI refs ----------
+    const selectedPlotEl = document.getElementById("selectedPlot");
+    const selectedCentroidEl = document.getElementById("selectedCentroid");
+
+    const btnSaveGrave = document.getElementById("btnSaveGrave");
+    const btnExport = document.getElementById("btnExport");
+    const btnClearRegister = document.getElementById("btnClearRegister");
+    const btnCopy = document.getElementById("btnCopy");
+    const graveList = document.getElementById("graveList");
+
+    let selectedGraphic = null;
+    let lastCentroid = null; // {lat,lng,text}
+
+    function fmtNum(n, d=6) {
+      if (n === null || n === undefined || isNaN(n)) return "—";
+      return Number(n).toFixed(d);
+    }
+
+    function renderGraveList() {
+      const graves = loadStored(STORE_GRAVES);
+      if (!graves.length) {
+        graveList.innerHTML = `<div class="text-white/60">No saved graves yet.</div>`;
+        return;
+      }
+      graveList.innerHTML = graves.slice().reverse().map(g => `
+        <div class="glass p-2">
+          <div class="font-semibold text-white">${g.name || "Unnamed"}</div>
+          <div class="text-white/70">${g.type} • ${g.status}</div>
+          <div class="text-white/80">Lat: ${g.lat} • Lng: ${g.lng}</div>
+          <div class="text-white/50">${g.saved_at}</div>
+        </div>
+      `).join("");
+    }
+
+    function downloadCSV(filename, rows) {
+      if (!rows || !rows.length) return alert("Nothing to export.");
+      const cols = Object.keys(rows[0]);
+      const esc = (v) => `"${String(v ?? "").replaceAll('"','""')}"`;
+      const csv = cols.join(",") + "\n" + rows.map(r => cols.map(c => esc(r[c])).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ---------------- ArcGIS SDK ----------------
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/GraphicsLayer",
+      "esri/Graphic",
+      "esri/widgets/Sketch",
+      "esri/symbols/SimpleFillSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/popup/content/FieldsContent",
+      "esri/geometry/geometryEngine",
+      "esri/geometry/Extent",
+      "esri/layers/MediaLayer",
+      "esri/layers/support/ImageElement",
+      "esri/geometry/SpatialReference",
+      "esri/geometry/support/webMercatorUtils",
+      "esri/geometry/Point"
+    ], function(
+      Map, MapView, GraphicsLayer, Graphic, Sketch,
+      SimpleFillSymbol, SimpleLineSymbol, FieldsContent,
+      geometryEngine, Extent,
+      MediaLayer, ImageElement,
+      SpatialReference, webMercatorUtils,
+      Point
+    ) {
+
+      const DRONE_IMG_URL = new URL("/basemaps/cemetery_demo.jpg?v=" + Date.now(), window.location.origin).toString();
+      const CENTER_LAT = -33.334581;
+      const CENTER_LNG = 19.3183851;
+
+      document.getElementById("viewDiv").style.backgroundImage = `url("${DRONE_IMG_URL}")`;
+
+      const map = new Map({ basemap: null });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map,
+        spatialReference: { wkid: 4326 },
+        center: [CENTER_LNG, CENTER_LAT],
+        zoom: 18,
+        constraints: { minZoom: 1, maxZoom: 25 }
+      });
+
+      const graphicsLayer = new GraphicsLayer({ title: "Demo Features" });
+      map.add(graphicsLayer);
+
+      const ratio = 4000 / 2250;
+      const lonSpan = 0.004;
+      const latSpan = lonSpan / ratio;
+
+      const imageExtentWGS84 = new Extent({
+        xmin: CENTER_LNG - lonSpan/2,
+        ymin: CENTER_LAT - latSpan/2,
+        xmax: CENTER_LNG + lonSpan/2,
+        ymax: CENTER_LAT + latSpan/2,
+        spatialReference: { wkid: 4326 }
+      });
+
+      const preloadedImg = new Image();
+      preloadedImg.onload = () => setMsg(true, "✅ JPG loaded in browser. Adding to ArcGIS…");
+      preloadedImg.onerror = () => setMsg(false, "❌ Browser could not load JPG. Check /basemaps route + filename.");
+      preloadedImg.src = DRONE_IMG_URL;
+
+      view.when(async () => {
+        setMsg(true, "✅ ArcGIS view ready. Waiting for JPG…");
+        await new Promise(r => setTimeout(r, 150));
+
+        if (preloadedImg.complete && preloadedImg.naturalWidth > 0) {
+          const imageElement = new ImageElement({
+            image: preloadedImg,
+            extent: imageExtentWGS84
+          });
+
+          const droneLayer = new MediaLayer({
+            title: "Offline Drone Basemap",
+            source: [imageElement],
+            opacity: 1
+          });
+
+          map.add(droneLayer, 0);
+          await view.goTo(imageExtentWGS84).catch(()=>{});
+          setMsg(true, "✅ Drone basemap added + zoomed to extent.");
+        } else {
+          setMsg(false, "⚠️ MediaLayer not added (image not loaded). Fallback background should still show.");
+        }
+
+        renderGraveList();
+        loadFeaturesFromStorage();
+        refreshStepLocks();
+      });
+
+      const boundarySymbol = new SimpleFillSymbol({
+        color: [15, 23, 42, 0.18],
+        outline: new SimpleLineSymbol({ color: [255, 255, 255, 0.85], width: 2 })
+      });
+
+      const plotSymbol = new SimpleFillSymbol({
+        color: [59, 130, 246, 0.18],
+        outline: new SimpleLineSymbol({ color: [59, 130, 246, 1], width: 2 })
+      });
+
+      const popupFields = new FieldsContent({
+        fieldInfos: [
+          { fieldName: "type", label: "Type" },
+          { fieldName: "name", label: "Name / Plot Code" },
+          { fieldName: "status", label: "Status" }
+        ]
+      });
+
+      function applyPopupAndSymbol(g) {
+        const t = g.attributes?.type || "plot";
+        g.symbol = (t === "boundary") ? boundarySymbol : plotSymbol;
+        g.popupTemplate = { title: "{type}: {name}", content: [popupFields] };
+      }
+
+      function hasBoundary() {
+        return graphicsLayer.graphics.some(g => (g.attributes?.type === "boundary"));
+      }
+      function refreshStepLocks() {
+        setStep1Done(hasBoundary());
+      }
+
+      function graphicToObject(g) {
+        const geom = g.geometry?.toJSON?.() || null;
+        if (geom) {
+          if (!geom.type && g.geometry?.type) geom.type = g.geometry.type;
+          if (!geom.spatialReference) {
+            const wkid = g.geometry?.spatialReference?.wkid || view.spatialReference?.wkid || 4326;
+            geom.spatialReference = { wkid };
+          }
+        }
+        return { geometry: geom, attributes: g.attributes || {} };
+      }
+
+      function normalizeGeomSR(geomObj) {
+        if (!geomObj) return geomObj;
+        if (!geomObj.spatialReference) {
+          geomObj.spatialReference = { wkid: view.spatialReference?.wkid || 4326 };
+        }
+        return geomObj;
+      }
+
+      function loadFeaturesFromStorage() {
+        graphicsLayer.removeAll();
+        const stored = loadStored(STORE_FEATURES);
+
+        stored.forEach(obj => {
+          if (!obj?.geometry) return;
+          const geometry = normalizeGeomSR(obj.geometry);
+          const g = new Graphic({ geometry, attributes: obj.attributes || {} });
+          applyPopupAndSymbol(g);
+          graphicsLayer.add(g);
+        });
+
+        refreshStepLocks();
+      }
+
+      function persistAllFeatures() {
+        const objs = graphicsLayer.graphics.toArray().map(g => graphicToObject(g));
+        saveStored(STORE_FEATURES, objs);
+      }
+
+      function getXY(pt) {
+        if (!pt) return null;
+
+        const x =
+          Number.isFinite(Number(pt.x)) ? Number(pt.x) :
+          Number.isFinite(Number(pt.longitude)) ? Number(pt.longitude) :
+          null;
+
+        const y =
+          Number.isFinite(Number(pt.y)) ? Number(pt.y) :
+          Number.isFinite(Number(pt.latitude)) ? Number(pt.latitude) :
+          null;
+
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y };
+      }
+
+      function toWGS84Point(point) {
+        if (!point) return null;
+        const xy = getXY(point);
+        if (!xy) return null;
+
+        const sr = point.spatialReference || view.spatialReference || new SpatialReference({ wkid: 4326 });
+        const wkid = sr?.wkid || 4326;
+        const isWM = wkid === 3857 || wkid === 102100 || wkid === 102113;
+
+        if (isWM) {
+          const geo = webMercatorUtils.webMercatorToGeographic(point);
+          return geo || null;
+        }
+
+        return point;
+      }
+
+      function manualCentroidFromRings(rings) {
+        try {
+          if (!rings || !rings.length || !rings[0] || rings[0].length < 3) return null;
+
+          const ring = rings[0].slice();
+          const first = ring[0];
+          const last = ring[ring.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) ring.push([first[0], first[1]]);
+
+          let twiceArea = 0;
+          let cx = 0;
+          let cy = 0;
+
+          for (let i = 0; i < ring.length - 1; i++) {
+            const x0 = Number(ring[i][0]);
+            const y0 = Number(ring[i][1]);
+            const x1 = Number(ring[i + 1][0]);
+            const y1 = Number(ring[i + 1][1]);
+            if (![x0,y0,x1,y1].every(Number.isFinite)) continue;
+
+            const a = (x0 * y1) - (x1 * y0);
+            twiceArea += a;
+            cx += (x0 + x1) * a;
+            cy += (y0 + y1) * a;
+          }
+
+          if (Math.abs(twiceArea) < 1e-18) {
+            let sx = 0, sy = 0, n = 0;
+            for (const pt of ring) {
+              const x = Number(pt[0]);
+              const y = Number(pt[1]);
+              if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+              sx += x; sy += y; n++;
+            }
+            if (!n) return null;
+            return { x: sx / n, y: sy / n };
+          }
+
+          const area6 = twiceArea * 3;
+          return { x: cx / area6, y: cy / area6 };
+        } catch {
+          return null;
+        }
+      }
+
+      function computeCentroid(geom) {
+        try {
+          if (!geom) return null;
+
+          const simplified = geometryEngine.simplify(geom) || geom;
+          let p = null;
+
+          if (simplified.type === "polygon" && geometryEngine.labelPoint) {
+            p = geometryEngine.labelPoint(simplified);
+          }
+
+          if (!p && simplified.type === "polygon" && simplified.rings) {
+            const c = manualCentroidFromRings(simplified.rings);
+            if (c) {
+              p = new Point({
+                x: c.x,
+                y: c.y,
+                spatialReference: simplified.spatialReference || view.spatialReference
+              });
+            }
+          }
+
+          if (!p && simplified?.extent?.center) p = simplified.extent.center;
+          if (!p) return null;
+
+          const pWgs = toWGS84Point(p);
+          const xy = getXY(pWgs);
+          if (!xy) return null;
+
+          const lat = Number(xy.y);
+          const lng = Number(xy.x);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+          return { lat, lng, text: `${fmtNum(lat, 6)}, ${fmtNum(lng, 6)}` };
+        } catch (e) {
+          console.error("Centroid error:", e);
+          return null;
+        }
+      }
+
+      function setSelectedGraphic(g) {
+        selectedGraphic = g || null;
+
+        if (!g) {
+          selectedPlotEl.textContent = "—";
+          selectedCentroidEl.textContent = "—";
+          lastCentroid = null;
+          return;
+        }
+
+        const name = g.attributes?.name || "Unnamed";
+        selectedPlotEl.textContent = name;
+
+        const c = computeCentroid(g.geometry);
+        if (c) {
+          lastCentroid = c;
+          selectedCentroidEl.textContent = c.text;
+          setMsg(true, "✅ Plot selected. Centroid ready.");
+        } else {
+          lastCentroid = null;
+          selectedCentroidEl.textContent = "—";
+          setMsg(false, "⚠️ Could not compute centroid (plot may be invalid).");
+        }
+      }
+
+      const sketch = new Sketch({
+        layer: graphicsLayer,
+        view,
+        creationMode: "update"
+      });
+      view.ui.add(sketch, "top-right");
+
+      let nextType = "plot";
+
+      // ✅ Meeting Mode
+      const btnMeeting = document.getElementById("btnMeeting");
+      const btnBoundaryEl = document.getElementById("btnBoundary");
+      const btnPlotEl = document.getElementById("btnPlot");
+      let meetingMode = false;
+
+      function applyMeetingMode(on) {
+        meetingMode = !!on;
+        sketch.visible = !meetingMode;
+
+        if (meetingMode) {
+          btnBoundaryEl.disabled = true;
+          btnBoundaryEl.classList.add("opacity-50","cursor-not-allowed");
+
+          btnPlotEl.disabled = true;
+          btnPlotEl.classList.add("opacity-50","cursor-not-allowed");
+
+          btnMeeting.textContent = "🎤 Meeting Mode: On";
+          setMsg(true, "🎤 Meeting Mode ON: Editing hidden. Click plots to show centroid + save coords.");
+        } else {
+          btnBoundaryEl.disabled = false;
+          btnBoundaryEl.classList.remove("opacity-50","cursor-not-allowed");
+
+          btnMeeting.textContent = "🎤 Meeting Mode: Off";
+          setMsg(true, "Meeting Mode OFF: Editing enabled.");
+          refreshStepLocks();
+        }
+      }
+      btnMeeting.addEventListener("click", () => applyMeetingMode(!meetingMode));
+
+      function promptAttributes(type) {
+        const defaultName = (type === "boundary") ? "Cemetery Boundary" : "Plot A1";
+        const defaultStatus = (type === "boundary") ? "Active" : "Available";
+        const name = prompt(`Enter ${type === "boundary" ? "Boundary" : "Plot"} Name:`, defaultName) || defaultName;
+        const status = prompt(`Enter Status:`, defaultStatus) || defaultStatus;
+        return { name: name.trim(), status: status.trim() };
+      }
+
+      sketch.on("create", (evt) => {
+        if (meetingMode) {
+          sketch.cancel();
+          setMsg(false, "🎤 Meeting Mode: Editing is disabled.");
+          return;
+        }
+        if (evt.state !== "complete") return;
+
+        const g = evt.graphic;
+        g.attributes = g.attributes || {};
+        g.attributes.type = nextType;
+
+        const attrs = promptAttributes(nextType);
+        g.attributes.name = attrs.name;
+        g.attributes.status = attrs.status;
+
+        applyPopupAndSymbol(g);
+        persistAllFeatures();
+        refreshStepLocks();
+
+        setSelectedGraphic(g);
+
+        // ✅ SEND polygon to dashboard when created
+        sendPolygonToDashboard(g.geometry, { source: "create", type: nextType, name: attrs.name });
+
+        setMsg(true, `Saved ✅ ${nextType.toUpperCase()} created: "${attrs.name}"`);
+      });
+
+      sketch.on("update", (evt) => {
+        if (meetingMode) {
+          sketch.cancel();
+          setMsg(false, "🎤 Meeting Mode: Editing is disabled.");
+          return;
+        }
+        if (evt.state !== "complete") return;
+        persistAllFeatures();
+
+        const g = evt.graphics?.[0];
+        if (g) {
+          setSelectedGraphic(g);
+          // ✅ SEND polygon to dashboard when updated
+          sendPolygonToDashboard(g.geometry, { source: "update", type: g.attributes?.type, name: g.attributes?.name });
+        }
+
+        setMsg(true, "Geometry updated & saved ✅");
+      });
+
+      // Click select (hitTest)
+      view.on("click", async (event) => {
+        const hit = await view.hitTest(event);
+        const g = hit?.results?.find(r => r.graphic && r.graphic.layer === graphicsLayer)?.graphic;
+        if (g) {
+          setSelectedGraphic(g);
+
+          // ✅ SEND selected polygon to dashboard for linking
+          sendPolygonToDashboard(g.geometry, { source: "select", type: g.attributes?.type, name: g.attributes?.name });
+
+          setTimeout(persistAllFeatures, 150);
+        }
+      });
+
+      // Buttons
+      document.getElementById("btnBoundary").addEventListener("click", () => {
+        if (meetingMode) return setMsg(false, "🎤 Meeting Mode: Editing is disabled.");
+        nextType = "boundary";
+        sketch.create("polygon");
+        setMsg(true, "Step 1: Draw the cemetery boundary… double-click to finish.");
+      });
+
+      document.getElementById("btnPlot").addEventListener("click", () => {
+        if (meetingMode) return setMsg(false, "🎤 Meeting Mode: Editing is disabled.");
+        if (!hasBoundary()) {
+          alert("Please complete Step 1 (Draw Boundary) first.");
+          return;
+        }
+        nextType = "plot";
+        sketch.create("polygon");
+        setMsg(true, "Step 2: Draw a plot polygon… double-click to finish.");
+      });
+
+      document.getElementById("btnClear").addEventListener("click", () => {
+        if (!confirm("Clear all demo GIS drawings?")) return;
+        graphicsLayer.removeAll();
+        clearStored(STORE_FEATURES);
+        refreshStepLocks();
+        setSelectedGraphic(null);
+        setMsg(true, "Demo data cleared ✅");
+      });
+
+      btnSaveGrave.addEventListener("click", () => {
+        if (!selectedGraphic) return alert("Click a PLOT first to select it.");
+
+        const t = selectedGraphic.attributes?.type || "";
+        if (t !== "plot") return alert("Please select a PLOT (not the boundary).");
+
+        const c = computeCentroid(selectedGraphic.geometry);
+        if (!c) return alert("No centroid found. Redraw the plot (avoid crossing lines).");
+
+        lastCentroid = c;
+        selectedCentroidEl.textContent = c.text;
+
+        const graves = loadStored(STORE_GRAVES);
+        const now = new Date();
+        const saved_at = now.toISOString().slice(0,19).replace("T"," ");
+
+        graves.push({
+          type: "plot",
+          name: selectedGraphic.attributes?.name || "Unnamed",
+          status: selectedGraphic.attributes?.status || "",
+          lat: c.lat,
+          lng: c.lng,
+          saved_at
+        });
+
+        saveStored(STORE_GRAVES, graves);
+        renderGraveList();
+        setMsg(true, `Saved grave coordinate ✅ ${selectedGraphic.attributes?.name} @ ${c.text}`);
+      });
+
+      btnExport.addEventListener("click", () => {
+        const graves = loadStored(STORE_GRAVES);
+        if (!graves.length) return alert("No graves saved yet.");
+        downloadCSV("grave_register_demo.csv", graves);
+      });
+
+      btnClearRegister.addEventListener("click", () => {
+        if (!confirm("Clear the saved grave register? (Drawings stay)")) return;
+        clearStored(STORE_GRAVES);
+        renderGraveList();
+        setMsg(true, "Grave register cleared ✅");
+      });
+
+      btnCopy.addEventListener("click", async () => {
+        const text = lastCentroid?.text || selectedCentroidEl.textContent || "";
+        if (!text || text === "—") return alert("Click a plot first to get coordinates.");
+        try {
+          await navigator.clipboard.writeText(text);
+          setMsg(true, "Coordinates copied ✅ " + text);
+        } catch {
+          alert("Copy failed. Coordinates: " + text);
+        }
+      });
+
+      // boot
+      renderGraveList();
+      loadFeaturesFromStorage();
+      refreshStepLocks();
+    });
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+

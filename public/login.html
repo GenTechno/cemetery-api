@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Swellendam Cemetery • Secure Login</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    html, body { height: 100%; }
+    /* Subtle grid pattern */
+    .grid-pattern {
+      background-image:
+        linear-gradient(to right, rgba(15,23,42,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15,23,42,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-900">
+  <!-- Top ribbon -->
+  <div id="demoRibbon" class="hidden">
+    <div class="bg-amber-400 text-slate-900 text-xs font-semibold tracking-wide">
+      <div class="max-w-[1180px] mx-auto px-4 py-2 flex items-center justify-between">
+        <span>DEMO ENVIRONMENT • SAMPLE DATA ONLY</span>
+        <span class="opacity-80">No live municipal records are used</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="min-h-screen grid-pattern">
+    <div class="min-h-screen flex items-stretch">
+      <!-- LEFT: Brand / Trust panel -->
+      <aside class="hidden lg:flex w-[46%] relative overflow-hidden">
+        <!-- Background image -->
+        <div class="absolute inset-0">
+          <img src="assets/banner1.jpg" alt="Cemetery banner" class="w-full h-full object-cover opacity-70"/>
+          <div class="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950/80 to-blue-950/70"></div>
+        </div>
+
+        <div class="relative z-10 p-10 xl:p-14 flex flex-col justify-between w-full text-white">
+          <div class="flex items-center gap-3">
+            <img src="assets/logo.png" alt="Municipality Logo" class="w-12 h-12 rounded-xl bg-white p-2"/>
+            <div class="leading-tight">
+              <div class="text-lg font-semibold">Swellendam Municipality</div>
+              <div class="text-white/70 text-sm">Cemetery Administration System</div>
+            </div>
+          </div>
+
+          <div>
+            <h1 class="text-4xl xl:text-5xl font-extrabold tracking-tight leading-tight">
+              Secure cemetery management,
+              <span class="text-blue-200">built for municipalities.</span>
+            </h1>
+
+            <p class="mt-4 text-white/80 leading-relaxed max-w-xl">
+              Manage plots, deceased registers, and GIS-ready mapping with role-based access control and audit-friendly records.
+            </p>
+
+            <div class="mt-8 grid grid-cols-2 gap-4 max-w-xl">
+              <div class="rounded-2xl border border-white/15 bg-white/5 p-4">
+                <div class="text-xs text-white/70">Access control</div>
+                <div class="mt-1 font-semibold">Role-based permissions</div>
+              </div>
+              <div class="rounded-2xl border border-white/15 bg-white/5 p-4">
+                <div class="text-xs text-white/70">Operational readiness</div>
+                <div class="mt-1 font-semibold">Audit-friendly updates</div>
+              </div>
+              <div class="rounded-2xl border border-white/15 bg-white/5 p-4">
+                <div class="text-xs text-white/70">Compliance posture</div>
+                <div class="mt-1 font-semibold">POPIA-aware design</div>
+              </div>
+              <div class="rounded-2xl border border-white/15 bg-white/5 p-4">
+                <div class="text-xs text-white/70">Mapping</div>
+                <div class="mt-1 font-semibold">GIS-ready plot data</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-xs text-white/60 flex items-center justify-between">
+            <span>© Cemetery Cloud App</span>
+            <span class="inline-flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              System online
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT: Login panel -->
+      <main class="flex-1 flex items-center justify-center p-5 sm:p-10">
+        <div class="w-full max-w-[520px]">
+          <!-- Mobile header -->
+          <div class="lg:hidden mb-6">
+            <div class="flex items-center gap-3">
+              <img src="assets/logo.png" alt="Municipality Logo" class="w-11 h-11 rounded-xl bg-white p-2"/>
+              <div>
+                <div class="text-white font-semibold">Cemetery Administration</div>
+                <div class="text-white/70 text-sm">Secure municipal login</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Glass card -->
+          <section class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
+            <div class="p-6 sm:p-8">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h2 class="text-white text-2xl font-extrabold tracking-tight">Sign in</h2>
+                  <p class="text-white/70 text-sm mt-1">
+                    Use your assigned role to continue.
+                  </p>
+                </div>
+                <a href="/public-portal"
+                   class="text-xs text-white/70 hover:text-white underline underline-offset-4">
+                  Public portal
+                </a>
+              </div>
+
+              <!-- Roles row -->
+              <div class="mt-6 grid grid-cols-3 gap-2">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+                  <div class="text-white font-semibold text-sm">Manager</div>
+                  <div class="text-white/60 text-[11px]">Full</div>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+                  <div class="text-white font-semibold text-sm">Admin</div>
+                  <div class="text-white/60 text-[11px]">Full</div>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
+                  <div class="text-white font-semibold text-sm">Supervisor</div>
+                  <div class="text-white/60 text-[11px]">Read</div>
+                </div>
+              </div>
+
+              <form id="loginForm" class="mt-6 space-y-4">
+                <div>
+                  <label class="text-white/80 text-sm font-medium">Username</label>
+                  <input
+                    id="username"
+                    type="text"
+                    class="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none
+                           focus:ring-4 focus:ring-blue-400/20 focus:border-blue-300/40"
+                    placeholder="manager / administrator / supervisor"
+                    autocomplete="username"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label class="text-white/80 text-sm font-medium">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    class="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none
+                           focus:ring-4 focus:ring-blue-400/20 focus:border-blue-300/40"
+                    placeholder="Enter password"
+                    autocomplete="current-password"
+                    required
+                  />
+                </div>
+
+                <button
+                  id="loginBtn"
+                  type="submit"
+                  class="w-full rounded-2xl bg-white text-slate-900 font-semibold py-3
+                         hover:bg-slate-100 transition active:scale-[0.99]"
+                >
+                  Login
+                </button>
+
+                <div id="msg" class="text-sm mt-2"></div>
+
+                <div class="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/70">
+                  <div class="font-semibold text-white/80">Troubleshooting</div>
+                  <div class="mt-1 leading-relaxed">
+                    If login fails, check that your API server is running on port <span class="font-mono">3000</span>.
+                    Press <span class="font-mono">F12</span> → Console to view errors.
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <div class="px-6 sm:px-8 py-5 border-t border-white/10 text-xs text-white/60 flex items-center justify-between">
+              <span>Secure access • RBAC</span>
+              <span id="apiHint" class="font-mono opacity-70"></span>
+            </div>
+          </section>
+
+          <!-- Tiny footer -->
+          <div class="mt-5 text-center text-xs text-white/50">
+            For municipal staff use only.
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // ✅ Works on localhost or cloud later
+    const API_BASE =
+      (localStorage.getItem("API_BASE")) ||
+      ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
+        ? "http://localhost:3000"
+        : `http://${location.hostname}:3000`);
+
+    document.getElementById("apiHint").textContent = API_BASE;
+
+    // Demo ribbon (optional) - won't break if endpoint missing
+    fetch(`${API_BASE}/api/config`)
+      .then(r => r.json())
+      .then(cfg => {
+        if (cfg?.isDemo) document.getElementById("demoRibbon").classList.remove("hidden");
+      })
+      .catch(() => { /* ignore */ });
+
+    const form = document.getElementById("loginForm");
+    const msg = document.getElementById("msg");
+
+    function setMsg(ok, text) {
+      msg.innerHTML = ok
+        ? `<span class="text-emerald-300 font-medium">${text}</span>`
+        : `<span class="text-red-300 font-medium">${text}</span>`;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setMsg(false, data.error || "Login failed");
+          return;
+        }
+
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userRole", data.user?.role || "");
+        localStorage.setItem("userPermission", data.user?.permission || "read");
+
+        setMsg(true, "Login successful ✅ Redirecting...");
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        setMsg(false, "Network/API error: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
+
+
+
+
+
+

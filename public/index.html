@@ -1,0 +1,2396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Swellendam Cemetery • Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+
+<!-- ✅ Excel/CSV Import (SheetJS) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- ✅ EMAIL NOTIFICATIONS (EmailJS) — restored safely (won’t break if not configured) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<style>
+  html,body{ height:100%; }
+
+  .grid-pattern {
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .glass{
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.06);
+    backdrop-filter: blur(14px);
+    border-radius: 22px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35);
+  }
+
+  /* ✅ dark dropdown (no white flash) */
+  select, option{
+    background-color: rgba(11,18,32,.95) !important;
+    color: rgba(255,255,255,.92) !important;
+  }
+
+  .input-dark{
+    width:100%;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.92);
+    padding: 10px 12px;
+    outline: none;
+  }
+  .label-dark{ color: rgba(255,255,255,.75); font-size: 12px; font-weight: 700; }
+  .help-text{ color: rgba(255,255,255,.62); font-size: 12px; }
+  .anchor { scroll-margin-top: 90px; }
+
+  .btn{
+    border-radius: 16px;
+    padding: 10px 14px;
+    font-weight: 900;
+    font-size: 14px;
+    transition: 150ms ease;
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.92);
+  }
+  .btn:hover{ background: rgba(255,255,255,.10); }
+  .btn-primary{
+    background: #ffffff;
+    color: #0b1220;
+    border-color: rgba(255,255,255,.30);
+  }
+  .btn-danger{
+    background: rgba(239,68,68,.85);
+    border-color: rgba(239,68,68,.35);
+    color: #fff;
+  }
+  .btn-success{
+    background: rgba(34,197,94,.85);
+    border-color: rgba(34,197,94,.35);
+    color: #fff;
+  }
+
+  /* Analytics look like screenshot */
+  .analytics-shell{
+    border-radius: 26px;
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.05);
+    box-shadow: 0 30px 80px rgba(0,0,0,.45);
+  }
+  .analytics-card{
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.06);
+  }
+
+  /* Plot cards = same vibe as Export CSV */
+  .plotCard{
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+    overflow: hidden;
+    transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+    cursor: pointer;
+    user-select:none;
+  }
+  .plotCard:hover{
+    transform: translateY(-4px);
+    box-shadow: 0 18px 34px rgba(0,0,0,.35);
+    filter: saturate(1.03);
+  }
+  .plotStrip{ height: 8px; width: 100%; }
+
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.06);
+    font-size: 11px;
+    font-weight: 900;
+    color: rgba(255,255,255,.92);
+    white-space: nowrap;
+  }
+
+  .modalOverlay{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,.62);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 80;
+    padding: 16px;
+  }
+  .modalCard{
+    width: 100%;
+    max-width: 980px;
+    padding: 18px;
+  }
+
+  .tableDark{
+    width:100%;
+    border-collapse: collapse;
+    overflow:hidden;
+    border-radius:16px;
+  }
+  .tableDark th, .tableDark td{
+    padding: 10px 10px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    font-size: 12px;
+    vertical-align: top;
+  }
+  .tableDark th{
+    text-align:left;
+    color: rgba(255,255,255,.75);
+    font-weight: 900;
+    background: rgba(255,255,255,.06);
+  }
+  .tableDark td{ color: rgba(255,255,255,.88); }
+
+  /* GIS proof panel */
+  #plotProofPanel{
+    margin-top:10px;
+    padding:12px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.15);
+    font-size:13px;
+    color:#22c55e;
+    display:none;
+    max-width:520px;
+  }
+</style>
+</head>
+
+<body class="bg-slate-950 text-white">
+  <!-- Top bar -->
+  <div class="sticky top-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur">
+    <div class="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="assets/logo.png" alt="Municipality Logo" class="w-10 h-10 rounded-xl bg-white p-2"/>
+        <div class="leading-tight">
+          <div class="font-extrabold">Swellendam Municipality</div>
+          <div class="text-xs text-white/60">Cemetery Administration • Dashboard</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-xs text-white/70 hidden sm:block" id="roleHeader">Logged in</div>
+        <button id="logoutBtn" class="btn btn-danger">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="min-h-screen grid-pattern">
+    <main class="max-w-[1400px] mx-auto px-4 py-6">
+
+      <!-- Banner -->
+      <header class="relative overflow-hidden rounded-3xl mb-6 border border-white/10 shadow-2xl">
+        <div class="absolute inset-0">
+          <img src="assets/banner1.jpg" id="bannerImg" alt="Banner"
+            class="w-full h-[420px] md:h-[520px] object-cover opacity-75"/>
+          <div class="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950/60 to-blue-950/50"></div>
+        </div>
+        <a href="/public-portal" class="btn absolute top-6 right-6 z-10">Public portal</a>
+
+        <div class="relative p-8 md:p-12 text-center">
+          <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight">
+            Cemetery Administration Dashboard
+          </h1>
+
+          <div class="mt-10 md:mt-14 flex flex-col items-center text-center">
+            <div class="rounded-full bg-white/95 p-3 shadow-2xl border border-white/30">
+              <img src="assets/logo.png" alt="Municipality Logo"
+                class="w-24 h-24 md:w-32 md:h-32 rounded-full object-contain"/>
+            </div>
+            <div class="mt-4 text-white/85 text-sm md:text-base font-semibold">
+              GIS Mapping • Cemetery Administration • Analytics
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Controls -->
+      <section class="glass p-5 mb-6">
+        <div class="grid md:grid-cols-6 gap-3 items-end">
+          <div class="md:col-span-2">
+            <label class="label-dark">Select Cemetery</label>
+            <select id="cemeterySelect" class="input-dark mt-2">
+              <option value="">Loading...</option>
+            </select>
+            <div class="help-text mt-2">Only: <b>Ceres</b> and <b>Bella Vista</b></div>
+          </div>
+
+          <div class="flex gap-2 flex-wrap">
+            <button id="viewPlotsBtn" class="btn btn-primary">View plots</button>
+            <button id="resetCemBtn" class="btn">Reset view</button>
+          </div>
+
+          <div class="flex gap-2 md:col-span-2 flex-wrap">
+            <button id="addPlotBtn" class="btn">Create single plot</button>
+            <button id="massCreateBtn" class="btn">Mass create</button>
+            <button id="clearLocalBtn" class="btn">🧹 Clear local plots</button>
+          </div>
+
+          <div class="flex gap-2 justify-end flex-wrap">
+            <button id="auditBtn" class="btn">🧾 Audit Log</button>
+            <button id="reportBtn" class="btn">📊 Reports</button>
+            <button id="exportBtn" class="btn">Export CSV</button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between gap-2 flex-wrap">
+          <div class="help-text" id="apiStatus"></div>
+          <div id="activePlotPill"
+            class="text-xs font-extrabold px-3 py-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 text-emerald-300">
+            Active Plot: None
+          </div>
+        </div>
+
+        <div class="help-text mt-3">
+          ✅ Demo rule: <b>20 plots per cemetery</b> (server + local combined).
+        </div>
+      </section>
+
+      <!-- Status update section -->
+      <section id="statusUpdateSection" class="glass p-5 mb-6 hidden anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <h3 class="text-lg font-extrabold">Update Plot Status</h3>
+          <span class="help-text">Available → Reserved → Occupied (updates analytics instantly)</span>
+        </div>
+
+        <div class="grid md:grid-cols-6 gap-3 items-end">
+          <div class="md:col-span-3">
+            <label class="label-dark">Select Plot</label>
+            <select id="statusPlotSelect" class="input-dark mt-2">
+              <option value="">Load plots first…</option>
+            </select>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="label-dark">New Status</label>
+            <select id="statusNewValue" class="input-dark mt-2">
+              <option value="Available">Available</option>
+              <option value="Reserved">Reserved</option>
+              <option value="Occupied">Occupied</option>
+            </select>
+          </div>
+
+          <div class="md:col-span-1 flex gap-2">
+            <button id="applyStatusBtn" class="btn btn-success w-full">Apply</button>
+          </div>
+        </div>
+
+        <div class="help-text mt-3">
+          Tip: You can also double-click a plot card → edit and change status there.
+        </div>
+      </section>
+
+      <!-- Analytics -->
+      <section id="analyticsSection" class="analytics-shell p-5 mb-6 hidden anchor">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div class="text-lg font-extrabold">Cemetery Analytics</div>
+            <div class="help-text">Based on plots loaded from the API (plus local fallback).</div>
+          </div>
+          <div class="flex gap-2">
+            <button id="analyticsRefreshBtn" class="btn btn-primary">Refresh</button>
+            <button id="analyticsPlay4DBtn" class="btn">Play 4D</button>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-4 gap-3 mt-4">
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Total plots</div>
+            <div class="text-2xl font-extrabold mt-1" id="aTotal">0</div>
+          </div>
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Available</div>
+            <div class="text-2xl font-extrabold mt-1" id="aAvail">0</div>
+          </div>
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Reserved</div>
+            <div class="text-2xl font-extrabold mt-1" id="aRes">0</div>
+          </div>
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Occupied</div>
+            <div class="text-2xl font-extrabold mt-1" id="aOcc">0</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 flex-wrap mt-4">
+          <div class="help-text font-extrabold">Burials filter:</div>
+          <select id="burialsFilter" class="input-dark" style="max-width:220px">
+            <option value="all">All statuses</option>
+            <option value="Available">Available</option>
+            <option value="Reserved">Reserved</option>
+            <option value="Occupied">Occupied</option>
+          </select>
+          <div class="help-text">4D = Month × Year × Count (+ Filter)</div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-4 mt-4">
+          <div class="analytics-card p-4">
+            <div class="text-sm font-extrabold">Status Breakdown</div>
+            <div class="help-text mt-1" id="donutTitle">—</div>
+            <div id="statusDonut" style="height:320px;"></div>
+          </div>
+
+          <div class="analytics-card p-4">
+            <div class="text-sm font-extrabold">Burials by Month (Payment Date) — 4D</div>
+            <div class="help-text mt-1" id="surfaceTitle">—</div>
+            <div id="burialsSurface" style="height:320px;"></div>
+          </div>
+
+          <div class="analytics-card p-4">
+            <div class="text-sm font-extrabold">Quick Stats</div>
+            <div class="mt-3 text-sm space-y-2">
+              <div class="flex justify-between"><span class="text-white/75">Total plots:</span> <b id="qTotal">0</b></div>
+              <div class="flex justify-between"><span class="text-white/75">Available:</span> <b id="qAvail">0</b></div>
+              <div class="flex justify-between"><span class="text-white/75">Reserved:</span> <b id="qRes">0</b></div>
+              <div class="flex justify-between"><span class="text-white/75">Occupied:</span> <b id="qOcc">0</b></div>
+              <div class="help-text pt-2">Tip: change the burials filter to see the surface update.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Plots -->
+      <section id="plotSection" class="mb-6 glass p-5 hidden anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <h3 id="cemeteryTitle" class="text-lg font-extrabold">Cemetery Plots</h3>
+          <span class="help-text">Double click a plot = edit (status, delete, polygon)</span>
+        </div>
+        <div id="plotGrid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));"></div>
+      </section>
+
+      <!-- ✅ Upload old data (Excel/CSV) — Single OR Mass -->
+      <section id="importOldDataSection" class="glass p-5 mb-6 hidden anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h3 class="text-lg font-extrabold">Import Old Data (Single or Mass)</h3>
+            <div class="help-text">
+              Upload <b>.xlsx</b>, <b>.xls</b> or <b>.csv</b>.
+              You can apply <b>one row</b> to one plot, OR apply <b>many rows</b> to many plots (auto-link to empty plots).
+            </div>
+          </div>
+          <div class="help-text">Preview → choose mode → Apply</div>
+        </div>
+
+        <div class="grid md:grid-cols-4 gap-3 mt-4 items-end">
+          <div>
+            <label class="label-dark">Choose Plot (for Single Apply)</label>
+            <select id="importPlotSelect" class="input-dark mt-2">
+              <option value="">Load plots first…</option>
+            </select>
+            <div class="help-text mt-2">Tip: Click <b>View plots</b> first so plots load.</div>
+          </div>
+
+          <div class="md:col-span-1">
+            <label class="label-dark">Upload File (Excel/CSV)</label>
+            <input id="importFileInput" class="input-dark mt-2" type="file" accept=".xlsx,.xls,.csv"/>
+            <div class="help-text mt-2">
+              Supports headers (flexible): <b>plot_code</b>, <b>owner_name</b>, <b>gender</b>, <b>status</b>,
+              plus deceased: <b>deceased_name</b>, <b>deceased_id</b>, <b>date_of_death</b>, <b>burial_date</b>, <b>undertaker</b>, <b>ref_no</b>, <b>notes</b>.
+            </div>
+          </div>
+
+          <div>
+            <label class="label-dark">Mass Apply Mode</label>
+            <select id="importModeSelect" class="input-dark mt-2">
+              <option value="auto_empty">Auto-assign to empty plots (recommended)</option>
+              <option value="match_plot_code">Match rows by plot_code</option>
+            </select>
+            <div class="help-text mt-2">
+              “Empty plot” = no owner name (owner_name blank). Sorted by plot code.
+            </div>
+          </div>
+
+          <div class="flex gap-2 justify-end flex-wrap">
+            <button id="importPreviewBtn" class="btn">Preview</button>
+            <button id="importApplyBtn" class="btn btn-success">Apply to Plot</button>
+            <button id="importApplyMassBtn" class="btn btn-primary">Apply Mass</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="label-dark">Preview (first rows)</div>
+          <pre id="importPreviewBox" class="input-dark mt-2 text-xs font-mono" style="white-space:pre-wrap; min-height:140px;" readonly></pre>
+          <div class="help-text mt-2" id="importMsg"></div>
+        </div>
+      </section>
+
+      <!-- ✅ NEW: Deceased Register Table -->
+      <section id="deceasedRegisterSection" class="glass p-5 mb-6 hidden anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h3 class="text-lg font-extrabold">Deceased Register</h3>
+            <div class="help-text">This table is generated from saved Deceased / Burial Certificate entries (stored locally per plot for demo).</div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button id="deceasedRefreshBtn" class="btn">Refresh</button>
+            <button id="deceasedExportBtn" class="btn">Export CSV</button>
+            <button id="deceasedClearBtn" class="btn btn-danger">Clear local deceased</button>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-3 mt-4 items-end">
+          <div class="md:col-span-2">
+            <label class="label-dark">Search</label>
+            <input id="deceasedSearch" class="input-dark mt-2" placeholder="Search by name, plot code, ID, undertaker, ref no..."/>
+          </div>
+          <div>
+            <label class="label-dark">Show</label>
+            <select id="deceasedScope" class="input-dark mt-2">
+              <option value="current">Current cemetery only</option>
+              <option value="all">All cemeteries (local)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="help-text mt-3" id="deceasedSummary">—</div>
+
+        <div class="mt-4 overflow-auto rounded-2xl border border-white/10">
+          <table class="tableDark">
+            <thead>
+              <tr>
+                <th style="min-width:110px">Plot</th>
+                <th style="min-width:170px">Deceased Name</th>
+                <th style="min-width:140px">ID / Passport</th>
+                <th style="min-width:130px">Date of Death</th>
+                <th style="min-width:120px">Burial Date</th>
+                <th style="min-width:160px">Undertaker</th>
+                <th style="min-width:120px">Ref No.</th>
+                <th style="min-width:170px">Updated</th>
+              </tr>
+            </thead>
+            <tbody id="deceasedTbody">
+              <tr><td colspan="8" class="text-white/70">No deceased entries yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ✅ GIS / Drone Map (RESTORED) -->
+      <section id="gisSection" class="glass p-5 mb-6 anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <h3 class="text-lg font-extrabold">GIS Map (Drone Demo)</h3>
+          <span class="help-text">Draw polygons on the drone image. Then open a plot → Link last drawn polygon.</span>
+        </div>
+
+        <div class="mt-4 overflow-hidden rounded-xl border border-white/10" style="height:70vh;">
+          <iframe
+            id="droneFrameMain"
+            src="arcgis-demo.html"
+            style="width:100%; height:100%; border:0;"
+            loading="lazy"
+          ></iframe>
+        </div>
+
+        <div class="help-text mt-2">
+          Draw on the drone map above. Coordinates will appear in the proof panel below.
+        </div>
+
+        <div id="plotProofPanel"></div>
+
+        <p class="help-text mt-3">
+          Tip: Draw polygon on drone map. Then open a plot and click <b>Link last drawn polygon</b>, then <b>Save</b>.
+        </p>
+      </section>
+
+      <!-- Audit -->
+      <section id="auditSection" class="glass p-5 mb-6 hidden anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <h3 class="text-lg font-extrabold">Audit Log</h3>
+          <div class="flex gap-2 flex-wrap">
+            <button id="auditRefreshBtn" class="btn">Refresh</button>
+            <button id="auditExportBtn" class="btn">Export CSV</button>
+          </div>
+        </div>
+
+        <div class="help-text mb-3">
+          Uses local audit storage for demo (and server if you later add an endpoint).
+        </div>
+
+        <div class="overflow-auto rounded-2xl border border-white/10">
+          <table class="tableDark">
+            <thead>
+              <tr>
+                <th style="min-width:170px">Time</th>
+                <th style="min-width:150px">Action</th>
+                <th style="min-width:170px">Cemetery</th>
+                <th style="min-width:120px">Plot</th>
+                <th style="min-width:150px">User</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="auditTbody">
+              <tr><td colspan="6" class="text-white/70">No audit loaded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Reports -->
+      <section id="reportsSection" class="glass p-5 mb-6 hidden anchor">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <h3 class="text-lg font-extrabold">Reports</h3>
+          <div class="flex gap-2 flex-wrap">
+            <button id="reportsRefreshBtn" class="btn">Refresh</button>
+            <button id="reportsExportDeceasedBtn" class="btn">Export Deceased CSV</button>
+          </div>
+        </div>
+
+        <div class="help-text mb-3">This report is generated from your currently loaded plots + local deceased register.</div>
+
+        <div class="grid md:grid-cols-4 gap-3">
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Plots loaded</div>
+            <div class="text-2xl font-extrabold mt-1" id="rPlotsLoaded">0</div>
+          </div>
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Occupied plots</div>
+            <div class="text-2xl font-extrabold mt-1" id="rOccupied">0</div>
+          </div>
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Deceased records (current cemetery)</div>
+            <div class="text-2xl font-extrabold mt-1" id="rDeceased">0</div>
+          </div>
+          <div class="analytics-card p-4">
+            <div class="text-white/70 text-xs font-extrabold">Plots missing owner</div>
+            <div class="text-2xl font-extrabold mt-1" id="rEmpty">0</div>
+          </div>
+        </div>
+
+        <div class="mt-4 overflow-auto rounded-2xl border border-white/10">
+          <table class="tableDark">
+            <thead>
+              <tr>
+                <th style="min-width:120px">Plot</th>
+                <th style="min-width:120px">Status</th>
+                <th style="min-width:180px">Owner</th>
+                <th style="min-width:110px">Gender</th>
+                <th style="min-width:200px">Deceased</th>
+                <th style="min-width:120px">Burial Date</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTbody">
+              <tr><td colspan="6" class="text-white/70">Load plots first, then open Reports.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+<script>
+/* =========================
+   CONFIG + API
+========================= */
+const API_BASE =
+  (localStorage.getItem("API_BASE")) ||
+  ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:3000"
+    : `http://${location.hostname}:3000`);
+
+const MAX_PLOTS_PER_CEMETERY = 20;
+
+function getToken() { return localStorage.getItem("authToken"); }
+function requireLogin() {
+  const token = getToken();
+  if (!token) { window.location.href = "login.html"; return null; }
+  return token;
+}
+async function apiFetch(path, options = {}) {
+  const token = requireLogin();
+  if (!token) return null;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
+  });
+
+  const ct = res.headers.get("content-type") || "";
+  const isJson = ct.includes("application/json");
+  const body = isJson ? await res.json().catch(()=>null) : await res.text().catch(()=> "");
+
+  if (!res.ok) {
+    const msg = (typeof body === "string" && body) ? body : (body?.error || body?.message || "");
+    throw new Error(msg || `Request failed: ${path}`);
+  }
+  return body;
+}
+const apiGet  = (p) => apiFetch(p);
+const apiPost = (p, body) => apiFetch(p, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body||{}) });
+const apiPatch = (p, body) => apiFetch(p, { method:"PATCH", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body||{}) });
+const apiDelete = (p) => apiFetch(p, { method:"DELETE" });
+
+function safeText(v){ return (v===null||v===undefined) ? "" : String(v); }
+function setStatus(text){ document.getElementById("apiStatus").textContent = text || ""; }
+function nowISO(){ return new Date().toISOString(); }
+
+/* =========================
+   ✅ EMAIL NOTIFICATIONS (RESTORED)
+   - Safe: only sends if configured; otherwise no-op
+   - Supports:
+     A) EmailJS (browser) using localStorage keys:
+        EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID
+     B) Optional server endpoint fallback: POST /api/notify (if you have it)
+========================= */
+const EMAIL_NOTIFY_ENABLED =
+  (localStorage.getItem("EMAIL_NOTIFY_ENABLED") || "1") !== "0";
+
+const EMAILJS_PUBLIC_KEY  = localStorage.getItem("EMAILJS_PUBLIC_KEY")  || "";
+const EMAILJS_SERVICE_ID  = localStorage.getItem("EMAILJS_SERVICE_ID")  || "";
+const EMAILJS_TEMPLATE_ID = localStorage.getItem("EMAILJS_TEMPLATE_ID") || "";
+
+/**
+ * Optional: comma-separated recipients for your template (if your template supports it).
+ * Store in localStorage key NOTIFY_TO (e.g. "admin@swellendam.gov.za,supervisor@swellendam.gov.za")
+ */
+const NOTIFY_TO = (localStorage.getItem("NOTIFY_TO") || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
+
+let __emailjsReady = false;
+function initEmailJSIfPossible(){
+  if(__emailjsReady) return true;
+  try{
+    if(!window.emailjs) return false;
+    if(!EMAILJS_PUBLIC_KEY) return false;
+    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    __emailjsReady = true;
+    return true;
+  }catch(e){
+    console.warn("EmailJS init failed:", e);
+    return false;
+  }
+}
+
+const __notifyDedup = { lastAt:0, lastKey:"" };
+function shouldNotify(dedupKey){
+  const now = Date.now();
+  // 5s dedupe window
+  if(dedupKey && __notifyDedup.lastKey === dedupKey && (now - __notifyDedup.lastAt) < 5000) return false;
+  __notifyDedup.lastKey = dedupKey || "";
+  __notifyDedup.lastAt = now;
+  return true;
+}
+
+async function tryServerNotify(payload){
+  // Only if you actually have an endpoint; failure is fine (won't break anything)
+  try{
+    await apiPost("/api/notify", payload);
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+async function sendEmailNotification(eventName, details, meta = {}){
+  try{
+    if(!EMAIL_NOTIFY_ENABLED) return { ok:false, why:"disabled" };
+
+    const cemetery = safeText(CURRENT?.cemeteryName || meta.cemetery || "");
+    const plot = safeText(meta.plot_code || meta.plot || "");
+    const actor = actorText();
+    const when = new Date().toLocaleString();
+
+    const subject = `[Cemetery Dashboard] ${eventName}${plot ? ` • Plot ${plot}` : ""}${cemetery ? ` • ${cemetery}` : ""}`;
+
+    // server fallback first (if you prefer server-side mail)
+    // If your server endpoint exists, it can send via nodemailer securely.
+    const serverPayload = { subject, event: eventName, cemetery, plot, actor, when, details, meta };
+    const serverOk = await tryServerNotify(serverPayload);
+    if(serverOk) return { ok:true, via:"server" };
+
+    // EmailJS (client-side) if configured
+    const ready = initEmailJSIfPossible();
+    if(!ready) return { ok:false, why:"not_configured" };
+    if(!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) return { ok:false, why:"missing_service_or_template" };
+
+    // Your EmailJS template must contain matching variables (common):
+    // subject, message, cemetery, plot, actor, when, to_email (optional)
+    const params = {
+      subject,
+      message: details,
+      cemetery,
+      plot,
+      actor,
+      when,
+      to_email: NOTIFY_TO.join(", "),
+      to_name: "Cemetery Admin"
+    };
+
+    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+    return { ok:true, via:"emailjs" };
+  }catch(e){
+    console.warn("Email notification failed:", e);
+    return { ok:false, why: e?.message || String(e) };
+  }
+}
+
+function notifyAsync(eventName, details, meta = {}, dedupKey = ""){
+  try{
+    if(!shouldNotify(dedupKey)) return;
+    // fire-and-forget (do not block UI / do not break flows)
+    sendEmailNotification(eventName, details, meta).then((res)=>{
+      if(res?.ok) console.log("✅ Email notification sent:", res);
+      else console.log("ℹ️ Email notification skipped/failed:", res);
+    });
+  }catch(e){
+    console.warn("notifyAsync error:", e);
+  }
+}
+
+/* =========================
+   STATE
+========================= */
+let CURRENT = { cemeteryId:null, cemeteryName:"", plots:[] };
+let ACTIVE_PLOT = null;
+
+/* GIS polygon capture */
+window.lastDrawn = null;
+
+function showPlotProof(coords) {
+  const panel = document.getElementById("plotProofPanel");
+  if (!panel) return;
+
+  const plotName = ACTIVE_PLOT?.plot_code || "No plot selected";
+  panel.style.display = "block";
+  panel.innerHTML =
+    `<b>✔ Plot ${safeText(plotName)}</b><br>` +
+    (Array.isArray(coords) ? coords.map(c => `Lat: ${c[0]} , Lng: ${c[1]}`).join("<br>") : "");
+}
+
+function setActivePlotUI(plot) {
+  const pill = document.getElementById("activePlotPill");
+  if (pill) pill.textContent = `Active Plot: ${plot ? safeText(plot.plot_code) : "None"}`;
+}
+
+/* Receive polygon from iframe (ArcGIS) */
+window.addEventListener("message", (event) => {
+  const okOrigin = event.origin === window.location.origin || event.origin === "null";
+  if (!okOrigin) return;
+
+  const data = event.data || {};
+  if (data.type !== "GIS_POLYGON") return;
+
+  const raw = data.coords || data.polygon || data.rings || (data.geometry && (data.geometry.coords || data.geometry.rings));
+  if (!Array.isArray(raw) || raw.length < 3) return;
+
+  window.lastDrawn = raw.map(pt => ([
+    Number(Number(pt[0]).toFixed(6)),
+    Number(Number(pt[1]).toFixed(6))
+  ]));
+
+  console.log("✅ Drone polygon received:", window.lastDrawn);
+  showPlotProof(window.lastDrawn);
+});
+
+/* =========================
+   STORAGE
+========================= */
+const LOCAL_PLOTS_KEY = "cemetery_local_plots_v3";
+const LOCAL_AUDIT_KEY = "cemetery_local_audit_v1";
+
+/* ✅ Deceased/Burial certificate local storage (per plot id) */
+const LOCAL_CERT_KEY  = "cemetery_local_cert_v1";
+
+function readLocalJSON(key, fallback){
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch { return fallback; }
+}
+function writeLocalJSON(key, v){ localStorage.setItem(key, JSON.stringify(v)); }
+
+function readLocalPlotsAll(){ return readLocalJSON(LOCAL_PLOTS_KEY, []); }
+function writeLocalPlotsAll(rows){ writeLocalJSON(LOCAL_PLOTS_KEY, rows || []); }
+function getLocalPlotsForCemetery(cemeteryId){
+  return readLocalPlotsAll().filter(p => String(p.cemetery_id) === String(cemeteryId));
+}
+function makeLocalPlotId(){ return `L-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+function isLocalPlot(p){ return safeText(p?.id).startsWith("L-") || p?.__local === true; }
+function addLocalPlot(row){
+  const all = readLocalPlotsAll(); all.unshift(row); writeLocalPlotsAll(all);
+}
+function updateLocalPlot(row){
+  const all = readLocalPlotsAll();
+  const idx = all.findIndex(x => String(x.id) === String(row.id));
+  if(idx>=0){ all[idx]=row; writeLocalPlotsAll(all); }
+}
+function removeLocalPlot(row){
+  const all = readLocalPlotsAll().filter(p => String(p.id)!==String(row.id));
+  writeLocalPlotsAll(all);
+}
+function clearLocalPlotsForCemetery(cemeteryId){
+  const all = readLocalPlotsAll().filter(p => String(p.cemetery_id)!==String(cemeteryId));
+  writeLocalPlotsAll(all);
+}
+
+function readAuditAll(){ return readLocalJSON(LOCAL_AUDIT_KEY, []); }
+function writeAuditAll(rows){ writeLocalJSON(LOCAL_AUDIT_KEY, rows || []); }
+function addAuditLocal(entry){
+  const all = readAuditAll();
+  all.unshift(entry);
+  writeAuditAll(all.slice(0, 500));
+}
+function actorText(){
+  const role = localStorage.getItem("userRole") || "user";
+  const perm = localStorage.getItem("userPermission") || "";
+  return `${role}${perm ? ` (${perm})` : ""}`;
+}
+
+/* ✅ Certificate helpers */
+function readAllCerts(){ return readLocalJSON(LOCAL_CERT_KEY, {}); }
+function writeAllCerts(map){ writeLocalJSON(LOCAL_CERT_KEY, map || {}); }
+function getCertForPlot(plotId){
+  const all = readAllCerts();
+  return all[String(plotId)] || null;
+}
+function saveCertForPlot(plotId, certObj){
+  const all = readAllCerts();
+  all[String(plotId)] = certObj;
+  writeAllCerts(all);
+}
+function clearAllCerts(){
+  writeAllCerts({});
+}
+
+/* =========================
+   DOM
+========================= */
+const cemeterySelect = document.getElementById("cemeterySelect");
+const viewPlotsBtn   = document.getElementById("viewPlotsBtn");
+const resetCemBtn    = document.getElementById("resetCemBtn");
+const addPlotBtn     = document.getElementById("addPlotBtn");
+const massCreateBtn  = document.getElementById("massCreateBtn");
+const clearLocalBtn  = document.getElementById("clearLocalBtn");
+const exportBtn      = document.getElementById("exportBtn");
+
+const analyticsSection = document.getElementById("analyticsSection");
+const plotSection = document.getElementById("plotSection");
+const statusUpdateSection = document.getElementById("statusUpdateSection");
+const importOldDataSection = document.getElementById("importOldDataSection");
+const deceasedRegisterSection = document.getElementById("deceasedRegisterSection");
+
+const cemeteryTitle = document.getElementById("cemeteryTitle");
+const plotGrid = document.getElementById("plotGrid");
+
+const statusPlotSelect = document.getElementById("statusPlotSelect");
+const statusNewValue = document.getElementById("statusNewValue");
+const applyStatusBtn = document.getElementById("applyStatusBtn");
+
+const analyticsRefreshBtn = document.getElementById("analyticsRefreshBtn");
+const analyticsPlay4DBtn = document.getElementById("analyticsPlay4DBtn");
+const burialsFilter = document.getElementById("burialsFilter");
+
+/* Import UI */
+const importPlotSelect = document.getElementById("importPlotSelect");
+const importFileInput = document.getElementById("importFileInput");
+const importModeSelect = document.getElementById("importModeSelect");
+const importPreviewBtn = document.getElementById("importPreviewBtn");
+const importApplyBtn = document.getElementById("importApplyBtn");
+const importApplyMassBtn = document.getElementById("importApplyMassBtn");
+const importPreviewBox = document.getElementById("importPreviewBox");
+const importMsg = document.getElementById("importMsg");
+
+/* Deceased table UI */
+const deceasedTbody = document.getElementById("deceasedTbody");
+const deceasedSearch = document.getElementById("deceasedSearch");
+const deceasedScope = document.getElementById("deceasedScope");
+const deceasedSummary = document.getElementById("deceasedSummary");
+
+let surfaceAnim = { playing:false, t:0, timer:null };
+
+/* =========================
+   Cemeteries filter (Ceres + Bella Vista only)
+========================= */
+function isAllowedCemeteryName(name){
+  const n = safeText(name).toLowerCase();
+  return n.includes("ceres") || n.includes("bella vista") || n.includes("bellavista");
+}
+
+async function loadCemeteriesIntoSelect(){
+  cemeterySelect.innerHTML = `<option value="">Loading...</option>`;
+  const cemeteries = await apiGet("/api/cemeteries");
+  const allowed = (cemeteries||[]).filter(c=>isAllowedCemeteryName(c.name));
+
+  cemeterySelect.innerHTML = `<option value="">-- Choose --</option>`;
+  allowed.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.name;
+    cemeterySelect.appendChild(opt);
+  });
+
+  if(!allowed.length){
+    cemeterySelect.innerHTML = `<option value="">No allowed cemeteries found</option>`;
+  }
+}
+
+function mergeServerAndLocalPlots(serverPlots, localPlots){
+  const seen = new Set();
+  const out = [];
+  (serverPlots||[]).forEach(p=>{
+    const key = safeText(p.plot_code).trim().toLowerCase();
+    if(key) seen.add(key);
+    out.push(p);
+  });
+  (localPlots||[]).forEach(p=>{
+    const key = safeText(p.plot_code).trim().toLowerCase();
+    if(!key) return;
+    if(seen.has(key)) return;
+    out.push(p);
+  });
+  return out;
+}
+
+async function loadPlotsForCemetery(cemeteryId){
+  const rows = await apiGet(`/api/cemeteries/${cemeteryId}/plots`);
+  const serverPlots = Array.isArray(rows) ? rows : [];
+  const localPlots = getLocalPlotsForCemetery(cemeteryId);
+  CURRENT.plots = mergeServerAndLocalPlots(serverPlots, localPlots).slice(0, MAX_PLOTS_PER_CEMETERY);
+}
+
+/* =========================
+   Analytics
+========================= */
+function countStatuses(plots){
+  const counts = { Available:0, Reserved:0, Occupied:0 };
+  (plots||[]).forEach(p=>{
+    const s = safeText(p.status).toLowerCase();
+    if(s==="reserved") counts.Reserved++;
+    else if(s==="occupied") counts.Occupied++;
+    else counts.Available++;
+  });
+  return counts;
+}
+function plotlyDarkLayout(){
+  return {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: "rgba(255,255,255,.78)" },
+    margin: { l:40, r:20, t:10, b:40 }
+  };
+}
+function buildSurfaceFromPlots(filterStatus){
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const year = new Date().getFullYear();
+  const years = [year-1, year];
+  const z = years.map(()=> months.map(()=>0));
+
+  const plots = (filterStatus==="all")
+    ? CURRENT.plots
+    : CURRENT.plots.filter(p=>safeText(p.status).toLowerCase()===safeText(filterStatus).toLowerCase());
+
+  const base = plots.length;
+
+  years.forEach((y, yi)=>{
+    months.forEach((m, mi)=>{
+      z[yi][mi] = Math.max(0, Math.round((base * 0.6) + (Math.sin((mi/12)*Math.PI*2 + yi)*base*0.25)));
+    });
+  });
+
+  return { years, months, z };
+}
+
+function renderAnalytics(){
+  const plots = CURRENT.plots || [];
+  const counts = countStatuses(plots);
+  const total = plots.length;
+
+  document.getElementById("aTotal").textContent = total;
+  document.getElementById("aAvail").textContent = counts.Available;
+  document.getElementById("aRes").textContent = counts.Reserved;
+  document.getElementById("aOcc").textContent = counts.Occupied;
+
+  document.getElementById("qTotal").textContent = total;
+  document.getElementById("qAvail").textContent = counts.Available;
+  document.getElementById("qRes").textContent = counts.Reserved;
+  document.getElementById("qOcc").textContent = counts.Occupied;
+
+  document.getElementById("donutTitle").textContent =
+    `${safeText(CURRENT.cemeteryName)} — Status Breakdown`;
+
+  Plotly.newPlot("statusDonut", [{
+    type:"pie",
+    labels:["Available","Reserved","Occupied"],
+    values:[counts.Available, counts.Reserved, counts.Occupied],
+    hole:0.62,
+    textinfo:"label+percent",
+    sort:false
+  }], {
+    ...plotlyDarkLayout(),
+    showlegend:true,
+    legend:{ orientation:"h", y:-0.12 }
+  }, {displayModeBar:false, responsive:true});
+
+  const filterVal = burialsFilter.value || "all";
+  const sdata = buildSurfaceFromPlots(filterVal);
+
+  document.getElementById("surfaceTitle").textContent =
+    `${safeText(CURRENT.cemeteryName)} — Burials (4D) • filter=${filterVal}`;
+
+  Plotly.newPlot("burialsSurface", [{
+    type:"surface",
+    x: sdata.months,
+    y: sdata.years,
+    z: sdata.z,
+    showscale:true,
+    opacity:0.95
+  }], {
+    paper_bgcolor:"rgba(0,0,0,0)",
+    scene: {
+      xaxis:{ title:"Month", gridcolor:"rgba(255,255,255,.08)" },
+      yaxis:{ title:"Year", gridcolor:"rgba(255,255,255,.08)" },
+      zaxis:{ title:"Count", gridcolor:"rgba(255,255,255,.08)" },
+      bgcolor:"rgba(0,0,0,0)"
+    },
+    margin:{l:0,r:0,t:10,b:0}
+  }, {displayModeBar:false, responsive:true});
+}
+
+function toggle4DPlay(){
+  surfaceAnim.playing = !surfaceAnim.playing;
+  analyticsPlay4DBtn.textContent = surfaceAnim.playing ? "Stop 4D" : "Play 4D";
+
+  if(!surfaceAnim.playing){
+    if(surfaceAnim.timer) clearInterval(surfaceAnim.timer);
+    surfaceAnim.timer = null;
+    return;
+  }
+
+  surfaceAnim.t = 0;
+  surfaceAnim.timer = setInterval(()=>{
+    surfaceAnim.t += 0.06;
+    const eye = {
+      x: 1.4 * Math.cos(surfaceAnim.t),
+      y: 1.4 * Math.sin(surfaceAnim.t),
+      z: 0.9
+    };
+    Plotly.relayout("burialsSurface", {"scene.camera.eye": eye});
+  }, 60);
+}
+
+/* =========================
+   Plots grid
+========================= */
+function statusMeta(status){
+  const s = safeText(status).toLowerCase();
+  if(s==="reserved") return { label:"Reserved", strip:"rgba(34,197,94,.75)" };
+  if(s==="occupied") return { label:"Occupied", strip:"rgba(29,78,216,.75)" };
+  return { label:"Available", strip:"rgba(37,99,235,.75)" };
+}
+
+function renderPlots(){
+  plotGrid.innerHTML = "";
+  cemeteryTitle.textContent = `${safeText(CURRENT.cemeteryName)} - Plots`;
+
+  if(!CURRENT.plots.length){
+    plotGrid.innerHTML = `<div class="p-4 text-sm text-white/70">No plots found.</div>`;
+    return;
+  }
+
+  const sorted = CURRENT.plots.slice().sort((a,b)=>safeText(a.plot_code).localeCompare(safeText(b.plot_code)));
+  sorted.forEach(p=>{
+    const meta = statusMeta(p.status);
+    const div = document.createElement("div");
+    div.className = "plotCard";
+    div.innerHTML = `
+      <div class="plotStrip" style="background:${meta.strip}"></div>
+      <div class="p-4">
+        <div class="flex justify-between gap-2">
+          <div>
+            <div class="text-lg font-extrabold">${safeText(p.plot_code)}</div>
+            <div class="text-xs text-white/75">${safeText(p.owner_name)||"No owner"}</div>
+            <div class="text-xs text-white/65">${safeText(p.gender)||"-"}</div>
+            <div class="text-[11px] text-white/55 mt-2">Polygon: ${Array.isArray(p.coords)&&p.coords.length>=3 ? "Linked ✅" : "None"}</div>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <span class="pill">${meta.label}</span>
+            ${isLocalPlot(p) ? `<span class="pill" style="border-color:rgba(250,204,21,.25);background:rgba(250,204,21,.12);color:rgba(250,204,21,.95)">Local</span>` : ``}
+          </div>
+        </div>
+        <div class="mt-3 text-[11px] text-white/55">Double click to edit (status, delete, polygon)</div>
+      </div>
+    `;
+    div.addEventListener("dblclick", ()=> openPlotEditor(p));
+    plotGrid.appendChild(div);
+  });
+}
+
+function rebuildStatusSelect(){
+  statusPlotSelect.innerHTML = "";
+  if(!CURRENT.plots.length){
+    statusPlotSelect.innerHTML = `<option value="">Load plots first…</option>`;
+    return;
+  }
+  statusPlotSelect.innerHTML = `<option value="">-- Choose plot --</option>`;
+  CURRENT.plots.slice().sort((a,b)=>safeText(a.plot_code).localeCompare(safeText(b.plot_code))).forEach(p=>{
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `${safeText(p.plot_code)} • ${safeText(p.status)||"Available"}`;
+    statusPlotSelect.appendChild(opt);
+  });
+}
+
+function rebuildImportPlotSelect(){
+  importPlotSelect.innerHTML = "";
+  if(!CURRENT.plots.length){
+    importPlotSelect.innerHTML = `<option value="">Load plots first…</option>`;
+    return;
+  }
+  importPlotSelect.innerHTML = `<option value="">-- Choose plot --</option>`;
+  CURRENT.plots.slice().sort((a,b)=>safeText(a.plot_code).localeCompare(safeText(b.plot_code))).forEach(p=>{
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `${safeText(p.plot_code)} • ${safeText(p.owner_name)||"No owner"}`;
+    importPlotSelect.appendChild(opt);
+  });
+}
+
+function refreshAllViews(){
+  analyticsSection.classList.remove("hidden");
+  plotSection.classList.remove("hidden");
+  statusUpdateSection.classList.remove("hidden");
+  importOldDataSection.classList.remove("hidden");
+  deceasedRegisterSection.classList.remove("hidden");
+
+  renderAnalytics();
+  renderPlots();
+  rebuildStatusSelect();
+  rebuildImportPlotSelect();
+  renderDeceasedRegister();
+  renderReports(); // safe refresh if reports open
+}
+
+/* =========================
+   Refresh pipeline
+========================= */
+async function refreshAfterChange(){
+  await loadPlotsForCemetery(CURRENT.cemeteryId);
+  refreshAllViews();
+}
+
+/* =========================
+   Create / update / delete / status
+========================= */
+async function createSinglePlot(){
+  if(!cemeterySelect.value) return alert("Select a cemetery first.");
+
+  if(CURRENT.cemeteryId !== cemeterySelect.value){
+    CURRENT.cemeteryId = cemeterySelect.value;
+    CURRENT.cemeteryName = cemeterySelect.options[cemeterySelect.selectedIndex]?.textContent || "";
+    await loadPlotsForCemetery(CURRENT.cemeteryId);
+  }
+
+  if(CURRENT.plots.length >= MAX_PLOTS_PER_CEMETERY){
+    return alert(`Demo limit: ${MAX_PLOTS_PER_CEMETERY} plots per cemetery.`);
+  }
+
+  const code = (prompt("Enter Plot Code (e.g. A19):", `A${CURRENT.plots.length+1}`) || "").trim();
+  if(!code) return;
+
+  const status = (prompt("Status (Available/Reserved/Occupied):", "Available") || "Available").trim();
+
+  try{
+    await apiPost("/api/plots", { cemetery_id: CURRENT.cemeteryId, plot_code: code, status });
+    addAuditLocal({ ts:nowISO(), action:"CREATE_PLOT", cemetery:CURRENT.cemeteryName, plot:code, user:actorText(), details:"Created on server" });
+    setStatus("✅ Plot created on server.");
+    notifyAsync("Plot Created", `Plot ${code} created with status ${status}.`, { cemetery: CURRENT.cemeteryName, plot_code: code, status }, `create:${CURRENT.cemeteryId}:${code}`);
+  }catch(e){
+    const localPlot = { id: makeLocalPlotId(), cemetery_id: CURRENT.cemeteryId, plot_code: code, status, owner_name:"", gender:"", coords:null, __local:true };
+    addLocalPlot(localPlot);
+    addAuditLocal({ ts:nowISO(), action:"CREATE_PLOT_LOCAL", cemetery:CURRENT.cemeteryName, plot:code, user:actorText(), details:"Created locally (server not available)" });
+    setStatus("✅ Plot created locally.");
+    notifyAsync("Plot Created (Local)", `Plot ${code} created locally with status ${status} (server not available).`, { cemetery: CURRENT.cemeteryName, plot_code: code, status }, `createLocal:${CURRENT.cemeteryId}:${code}`);
+  }
+
+  await refreshAfterChange();
+}
+
+async function massCreatePlots(){
+  if(!cemeterySelect.value) return alert("Select a cemetery first.");
+
+  if(CURRENT.cemeteryId !== cemeterySelect.value){
+    CURRENT.cemeteryId = cemeterySelect.value;
+    CURRENT.cemeteryName = cemeterySelect.options[cemeterySelect.selectedIndex]?.textContent || "";
+    await loadPlotsForCemetery(CURRENT.cemeteryId);
+  }
+
+  const remaining = MAX_PLOTS_PER_CEMETERY - CURRENT.plots.length;
+  if(remaining <= 0) return alert(`Demo limit: ${MAX_PLOTS_PER_CEMETERY} plots per cemetery.`);
+
+  const count = Number(prompt(`How many plots? (max ${remaining})`, String(Math.min(5, remaining))) || 0);
+  if(!Number.isFinite(count) || count<=0) return;
+  if(count>remaining) return alert(`You can only create ${remaining} more.`);
+
+  for(let i=0;i<count;i++){
+    const code = `A${CURRENT.plots.length + i + 1}`;
+    try{
+      await apiPost("/api/plots", { cemetery_id: CURRENT.cemeteryId, plot_code: code, status:"Available" });
+    }catch{
+      addLocalPlot({ id: makeLocalPlotId(), cemetery_id: CURRENT.cemeteryId, plot_code: code, status:"Available", coords:null, __local:true });
+    }
+  }
+
+  addAuditLocal({ ts:nowISO(), action:"MASS_CREATE", cemetery:CURRENT.cemeteryName, plot:"—", user:actorText(), details:`Created ${count} plots` });
+  setStatus("✅ Mass create done.");
+  notifyAsync("Mass Create Plots", `Created ${count} plots in ${CURRENT.cemeteryName}.`, { cemetery: CURRENT.cemeteryName, count }, `mass:${CURRENT.cemeteryId}:${count}:${nowISO().slice(0,10)}`);
+  await refreshAfterChange();
+}
+
+async function updatePlotStatus(plot, status){
+  // server first
+  if(!isLocalPlot(plot)){
+    try{
+      await apiPatch(`/api/plots/${plot.id}`, { status });
+      addAuditLocal({ ts:nowISO(), action:"STATUS_CHANGE", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:`Status -> ${status} (server)` });
+      setStatus("✅ Status updated on server.");
+      notifyAsync("Plot Status Updated", `Plot ${safeText(plot.plot_code)} status changed to ${status} (server).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code), status }, `status:${plot.id}:${status}`);
+      await refreshAfterChange();
+      return;
+    }catch(e){
+      // fallback local
+    }
+  }
+
+  const updated = { ...plot, status };
+  if(isLocalPlot(plot)) updateLocalPlot(updated);
+  else addLocalPlot({ ...updated, id: makeLocalPlotId(), cemetery_id: CURRENT.cemeteryId, __local:true });
+
+  addAuditLocal({ ts:nowISO(), action:"STATUS_CHANGE_LOCAL", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:`Status -> ${status} (local)` });
+  setStatus("✅ Status updated locally.");
+  notifyAsync("Plot Status Updated (Local)", `Plot ${safeText(plot.plot_code)} status changed to ${status} (local).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code), status }, `statusLocal:${safeText(plot.plot_code)}:${status}`);
+  await refreshAfterChange();
+}
+
+async function applyQuickStatus(){
+  const pid = statusPlotSelect.value;
+  if(!pid) return alert("Choose a plot first.");
+  const plot = CURRENT.plots.find(p=>String(p.id)===String(pid));
+  if(!plot) return alert("Plot not found.");
+  await updatePlotStatus(plot, statusNewValue.value);
+}
+
+/* =========================
+   Plot editor (kept as-is) + ✅ Deceased/Burial Certificate added
+========================= */
+async function savePlotCoords(plot, coords){
+  if(!isLocalPlot(plot)){
+    try{
+      await apiPatch(`/api/plots/${plot.id}`, { coords });
+      addAuditLocal({ ts:nowISO(), action:"LINK_POLYGON", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:"Saved coords on server" });
+      setStatus("✅ Polygon saved to server.");
+      notifyAsync("Polygon Linked", `Polygon linked to plot ${safeText(plot.plot_code)} (server).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `poly:${plot.id}`);
+      await refreshAfterChange();
+      return;
+    }catch(e){
+      // fallback local
+    }
+  }
+
+  const updated = { ...plot, coords };
+  if(isLocalPlot(plot)) updateLocalPlot(updated);
+  else addLocalPlot({ ...updated, id: makeLocalPlotId(), cemetery_id: CURRENT.cemeteryId, __local:true });
+
+  addAuditLocal({ ts:nowISO(), action:"LINK_POLYGON_LOCAL", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:"Saved coords locally" });
+  setStatus("✅ Polygon saved locally.");
+  notifyAsync("Polygon Linked (Local)", `Polygon linked to plot ${safeText(plot.plot_code)} (local).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `polyLocal:${safeText(plot.plot_code)}`);
+  await refreshAfterChange();
+}
+
+/* ✅ Print helper */
+function openPrintWindow(html){
+  const w = window.open("", "_blank");
+  if(!w) { alert("Popup blocked. Allow popups to print."); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ try{ w.print(); }catch{} }, 350);
+}
+
+function buildBurialCertificateHTML(data){
+  const logoSrc = "assets/logo.png";
+  const today = new Date().toLocaleDateString();
+
+  const esc = (s)=> String(s||"").replace(/[&<>"']/g, (m)=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Burial Certificate</title>
+  <style>
+    @page { margin: 18mm; }
+    body { font-family: Arial, Helvetica, sans-serif; color:#0b1220; }
+    .wrap { max-width: 820px; margin: 0 auto; }
+    .top { display:flex; align-items:center; gap:14px; border-bottom: 2px solid #0b1220; padding-bottom: 12px; }
+    .logo { width:70px; height:70px; border-radius: 14px; border: 1px solid #ddd; padding: 8px; object-fit: contain; }
+    h1 { margin:0; font-size: 22px; letter-spacing: .4px; }
+    .sub { margin-top: 2px; color:#334155; font-size: 12px; font-weight: 700; }
+    .box { margin-top: 16px; border: 1px solid #0b122020; border-radius: 14px; padding: 14px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+    .row { display:flex; justify-content:space-between; gap: 10px; border-bottom: 1px dashed #0b122020; padding: 8px 0; }
+    .k { font-size: 12px; color:#334155; font-weight: 800; }
+    .v { font-size: 13px; font-weight: 700; color:#0b1220; text-align:right; }
+    .title2 { margin: 18px 0 8px; font-size: 14px; font-weight: 900; color:#0b1220; }
+    .sig { margin-top: 26px; display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .line { border-top: 2px solid #0b1220; padding-top: 8px; font-size: 12px; font-weight: 800; color:#0b1220; }
+    .foot { margin-top: 14px; font-size: 11px; color:#475569; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <img class="logo" src="${esc(logoSrc)}" alt="Logo"/>
+      <div>
+        <h1>${esc(data.municipality || "Swellendam Municipality")} — Burial Certificate</h1>
+        <div class="sub">${esc(data.cemetery || "")} • Plot ${esc(data.plot_code || "")} • Issued: ${esc(data.issued || today)}</div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="grid">
+        <div class="row"><div class="k">Deceased Full Name</div><div class="v">${esc(data.deceased_name)}</div></div>
+        <div class="row"><div class="k">ID / Passport</div><div class="v">${esc(data.deceased_id)}</div></div>
+
+        <div class="row"><div class="k">Date of Death</div><div class="v">${esc(data.date_of_death)}</div></div>
+        <div class="row"><div class="k">Burial Date</div><div class="v">${esc(data.burial_date)}</div></div>
+
+        <div class="row"><div class="k">Cemetery</div><div class="v">${esc(data.cemetery)}</div></div>
+        <div class="row"><div class="k">Plot Code</div><div class="v">${esc(data.plot_code)}</div></div>
+
+        <div class="row"><div class="k">Owner Name (Plot)</div><div class="v">${esc(data.owner_name)}</div></div>
+        <div class="row"><div class="k">Gender (Plot)</div><div class="v">${esc(data.gender)}</div></div>
+
+        <div class="row"><div class="k">Undertaker</div><div class="v">${esc(data.undertaker)}</div></div>
+        <div class="row"><div class="k">Reference No.</div><div class="v">${esc(data.ref_no)}</div></div>
+      </div>
+
+      <div class="title2">Notes</div>
+      <div style="font-size:12px; color:#0b1220; font-weight:700; line-height:1.4; white-space:pre-wrap;">${esc(data.notes)}</div>
+
+      <div class="sig">
+        <div class="line">Municipal Official / Stamp</div>
+        <div class="line">Undertaker / Family Representative</div>
+      </div>
+
+      <div class="foot">
+        This document is generated from the Cemetery Administration Dashboard (Demo). Verify details before official use.
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function openPlotEditor(plot){
+  ACTIVE_PLOT = plot;
+  setActivePlotUI(plot);
+
+  const overlay = document.createElement("div");
+  overlay.className = "modalOverlay";
+
+  const card = document.createElement("div");
+  card.className = "glass modalCard";
+
+  card.innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <div>
+        <div class="text-lg font-extrabold">Edit Plot</div>
+        <div class="help-text">${safeText(CURRENT.cemeteryName)} • ${safeText(plot.plot_code)}</div>
+      </div>
+      <button class="btn" id="closeModalBtn">Close</button>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-3">
+      <div>
+        <label class="label-dark">Owner Name</label>
+        <input id="editOwner" class="input-dark mt-2" value="${safeText(plot.owner_name)}" placeholder="Owner name"/>
+      </div>
+      <div>
+        <label class="label-dark">Gender</label>
+        <input id="editGender" class="input-dark mt-2" value="${safeText(plot.gender)}" placeholder="M/F"/>
+      </div>
+      <div>
+        <label class="label-dark">Status</label>
+        <select id="editStatus" class="input-dark mt-2">
+          <option ${safeText(plot.status)==="Available"?"selected":""} value="Available">Available</option>
+          <option ${safeText(plot.status)==="Reserved"?"selected":""} value="Reserved">Reserved</option>
+          <option ${safeText(plot.status)==="Occupied"?"selected":""} value="Occupied">Occupied</option>
+        </select>
+      </div>
+      <div class="flex items-end gap-2">
+        <button class="btn btn-success w-full" id="saveMetaBtn">Save</button>
+        <button class="btn btn-danger w-full" id="deletePlotBtn">Delete</button>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <label class="label-dark">Linked Polygon Coordinates</label>
+      <textarea id="coordsBox" class="input-dark mt-2 text-xs font-mono" rows="6" readonly
+        placeholder="No polygon captured yet..."></textarea>
+    </div>
+
+    <div class="flex gap-2 flex-wrap mt-3">
+      <button class="btn" id="linkLastPolygonBtn">Link last drawn polygon</button>
+      <button class="btn btn-primary" id="saveCoordsBtn">Save polygon</button>
+    </div>
+
+    <div class="help-text mt-3">Draw on the drone map first, then click <b>Link last drawn polygon</b> → <b>Save polygon</b>.</div>
+
+    <!-- ✅ NEW: Deceased + Burial Certificate -->
+    <div class="mt-6 border-t border-white/10 pt-4">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <div class="text-sm font-extrabold">Deceased / Burial Certificate</div>
+          <div class="help-text">Saved locally per plot for demo (doesn’t break your API).</div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn" id="saveDeceasedCertBtn">Save deceased certificate</button>
+          <button class="btn btn-primary" id="printBurialCertBtn">Print burial certificate</button>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-3 mt-3">
+        <div>
+          <label class="label-dark">Deceased Full Name</label>
+          <input id="dcName" class="input-dark mt-2" placeholder="Full name"/>
+        </div>
+        <div>
+          <label class="label-dark">ID / Passport No.</label>
+          <input id="dcId" class="input-dark mt-2" placeholder="ID number"/>
+        </div>
+        <div>
+          <label class="label-dark">Date of Death</label>
+          <input id="dcDod" class="input-dark mt-2" type="date"/>
+        </div>
+        <div>
+          <label class="label-dark">Burial Date</label>
+          <input id="dcBurial" class="input-dark mt-2" type="date"/>
+        </div>
+        <div>
+          <label class="label-dark">Undertaker</label>
+          <input id="dcUndertaker" class="input-dark mt-2" placeholder="Company / Person"/>
+        </div>
+        <div>
+          <label class="label-dark">Reference No.</label>
+          <input id="dcRef" class="input-dark mt-2" placeholder="Optional reference"/>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <label class="label-dark">Notes</label>
+        <textarea id="dcNotes" class="input-dark mt-2 text-sm" rows="3" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+
+    <div class="text-xs mt-3" id="editMsg"></div>
+  `;
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  const msg = card.querySelector("#editMsg");
+  const setMsg = (ok, t) => msg.innerHTML = ok
+    ? `<span class="text-emerald-300 font-semibold">${t}</span>`
+    : `<span class="text-red-300 font-semibold">${t}</span>`;
+
+  const coordsBox = card.querySelector("#coordsBox");
+  if(Array.isArray(plot.coords) && plot.coords.length>=3) coordsBox.value = JSON.stringify(plot.coords, null, 2);
+  else if(Array.isArray(window.lastDrawn) && window.lastDrawn.length>=3) coordsBox.value = JSON.stringify(window.lastDrawn, null, 2);
+
+  // ✅ Load existing certificate (if saved)
+  const cert = getCertForPlot(plot.id);
+  const dcName = card.querySelector("#dcName");
+  const dcId = card.querySelector("#dcId");
+  const dcDod = card.querySelector("#dcDod");
+  const dcBurial = card.querySelector("#dcBurial");
+  const dcUndertaker = card.querySelector("#dcUndertaker");
+  const dcRef = card.querySelector("#dcRef");
+  const dcNotes = card.querySelector("#dcNotes");
+
+  if(cert){
+    dcName.value = safeText(cert.deceased_name);
+    dcId.value = safeText(cert.deceased_id);
+    dcDod.value = safeText(cert.date_of_death);
+    dcBurial.value = safeText(cert.burial_date);
+    dcUndertaker.value = safeText(cert.undertaker);
+    dcRef.value = safeText(cert.ref_no);
+    dcNotes.value = safeText(cert.notes);
+  }
+
+  card.querySelector("#closeModalBtn").onclick = ()=> overlay.remove();
+
+  card.querySelector("#linkLastPolygonBtn").onclick = ()=>{
+    if(!Array.isArray(window.lastDrawn) || window.lastDrawn.length<3){
+      setMsg(false, "Draw a polygon on the drone map first.");
+      return;
+    }
+    plot.coords = JSON.parse(JSON.stringify(window.lastDrawn));
+    coordsBox.value = JSON.stringify(plot.coords, null, 2);
+    showPlotProof(plot.coords);
+    setMsg(true, "Polygon linked ✅ Now click Save polygon.");
+  };
+
+  card.querySelector("#saveCoordsBtn").onclick = async ()=>{
+    if(!Array.isArray(plot.coords) || plot.coords.length<3){
+      setMsg(false, "No polygon linked. Click Link last drawn polygon first.");
+      return;
+    }
+    await savePlotCoords(plot, plot.coords);
+    overlay.remove();
+  };
+
+  card.querySelector("#saveMetaBtn").onclick = async ()=>{
+    const owner = card.querySelector("#editOwner").value.trim();
+    const gender = card.querySelector("#editGender").value.trim();
+    const status = card.querySelector("#editStatus").value;
+
+    if(!isLocalPlot(plot)){
+      try{
+        await apiPatch(`/api/plots/${plot.id}`, { owner_name: owner, gender, status });
+        addAuditLocal({ ts:nowISO(), action:"EDIT_PLOT", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:"Edited on server" });
+        setStatus("✅ Plot updated on server.");
+        notifyAsync("Plot Updated", `Plot ${safeText(plot.plot_code)} updated (owner/gender/status).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code), status, owner_name: owner, gender }, `edit:${plot.id}:${status}:${owner}:${gender}`);
+        overlay.remove();
+        await refreshAfterChange();
+        return;
+      }catch(e){
+        // fallback local
+      }
+    }
+
+    const updated = { ...plot, owner_name: owner, gender, status };
+    if(isLocalPlot(plot)) updateLocalPlot(updated);
+    else addLocalPlot({ ...updated, id: makeLocalPlotId(), cemetery_id: CURRENT.cemeteryId, __local:true });
+
+    addAuditLocal({ ts:nowISO(), action:"EDIT_PLOT_LOCAL", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:"Edited locally" });
+    setStatus("✅ Plot updated locally.");
+    notifyAsync("Plot Updated (Local)", `Plot ${safeText(plot.plot_code)} updated locally (owner/gender/status).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code), status, owner_name: owner, gender }, `editLocal:${safeText(plot.plot_code)}:${status}:${owner}:${gender}`);
+    overlay.remove();
+    await refreshAfterChange();
+  };
+
+  card.querySelector("#deletePlotBtn").onclick = async ()=>{
+    if(!confirm(`Delete plot ${safeText(plot.plot_code)}?`)) return;
+
+    if(!isLocalPlot(plot)){
+      try{
+        await apiDelete(`/api/plots/${plot.id}`);
+        addAuditLocal({ ts:nowISO(), action:"DELETE_PLOT", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:"Deleted on server" });
+        setStatus("✅ Plot deleted on server.");
+        notifyAsync("Plot Deleted", `Plot ${safeText(plot.plot_code)} deleted (server).`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `del:${plot.id}`);
+        overlay.remove();
+        await refreshAfterChange();
+        return;
+      }catch(e){
+        // fallback
+      }
+    }
+
+    removeLocalPlot(plot);
+    addAuditLocal({ ts:nowISO(), action:"DELETE_PLOT_LOCAL", cemetery:CURRENT.cemeteryName, plot:safeText(plot.plot_code), user:actorText(), details:"Deleted locally" });
+    setStatus("✅ Plot deleted locally.");
+    notifyAsync("Plot Deleted (Local)", `Plot ${safeText(plot.plot_code)} deleted locally.`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `delLocal:${safeText(plot.plot_code)}`);
+    overlay.remove();
+    await refreshAfterChange();
+  };
+
+  /* ✅ Save deceased certificate */
+  card.querySelector("#saveDeceasedCertBtn").onclick = ()=>{
+    const certObj = {
+      plot_id: String(plot.id),
+      plot_code: safeText(plot.plot_code),
+      cemetery: safeText(CURRENT.cemeteryName),
+      municipality: "Swellendam Municipality",
+      deceased_name: dcName.value.trim(),
+      deceased_id: dcId.value.trim(),
+      date_of_death: dcDod.value || "",
+      burial_date: dcBurial.value || "",
+      undertaker: dcUndertaker.value.trim(),
+      ref_no: dcRef.value.trim(),
+      notes: dcNotes.value.trim(),
+      updated_at: nowISO()
+    };
+
+    saveCertForPlot(plot.id, certObj);
+    addAuditLocal({
+      ts: nowISO(),
+      action: "SAVE_DECEASED_CERT",
+      cemetery: CURRENT.cemeteryName,
+      plot: safeText(plot.plot_code),
+      user: actorText(),
+      details: "Saved deceased/burial certificate locally"
+    });
+    setMsg(true, "Deceased certificate saved ✅ (local).");
+    notifyAsync("Deceased Certificate Saved", `Deceased certificate saved for plot ${safeText(plot.plot_code)}.\nName: ${certObj.deceased_name}\nID: ${certObj.deceased_id}`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `certSave:${plot.id}:${certObj.updated_at}`);
+    renderDeceasedRegister();
+    renderReports();
+  };
+
+  /* ✅ Print burial certificate */
+  card.querySelector("#printBurialCertBtn").onclick = ()=>{
+    const certObj = {
+      plot_id: String(plot.id),
+      plot_code: safeText(plot.plot_code),
+      cemetery: safeText(CURRENT.cemeteryName),
+      municipality: "Swellendam Municipality",
+      owner_name: safeText(card.querySelector("#editOwner").value.trim() || plot.owner_name),
+      gender: safeText(card.querySelector("#editGender").value.trim() || plot.gender),
+      deceased_name: dcName.value.trim(),
+      deceased_id: dcId.value.trim(),
+      date_of_death: dcDod.value || "",
+      burial_date: dcBurial.value || "",
+      undertaker: dcUndertaker.value.trim(),
+      ref_no: dcRef.value.trim(),
+      notes: dcNotes.value.trim(),
+      issued: new Date().toLocaleDateString()
+    };
+
+    saveCertForPlot(plot.id, { ...certObj, updated_at: nowISO() });
+
+    addAuditLocal({
+      ts: nowISO(),
+      action: "PRINT_BURIAL_CERT",
+      cemetery: CURRENT.cemeteryName,
+      plot: safeText(plot.plot_code),
+      user: actorText(),
+      details: "Printed burial certificate"
+    });
+
+    notifyAsync("Burial Certificate Printed", `Burial certificate printed for plot ${safeText(plot.plot_code)}.\nDeceased: ${certObj.deceased_name}`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `certPrint:${plot.id}:${certObj.issued}`);
+
+    const html = buildBurialCertificateHTML(certObj);
+    openPrintWindow(html);
+    renderDeceasedRegister();
+    renderReports();
+  };
+}
+
+/* =========================
+   ✅ Import Old Data (Excel/CSV)
+   - Single Apply: first row -> selected plot
+   - Mass Apply: many rows -> many plots (auto empty OR match plot_code)
+========================= */
+let IMPORT_STATE = { rows: [], preview: null };
+
+function normKey(k){
+  return safeText(k).trim().toLowerCase().replace(/\s+/g,"_").replace(/[^\w_]/g,"");
+}
+function pickField(obj, aliases){
+  const keys = Object.keys(obj||{});
+  for(const a of aliases){
+    const ak = normKey(a);
+    const found = keys.find(k=>normKey(k)===ak);
+    if(found) return obj[found];
+  }
+  return "";
+}
+function normalizeStatus(v){
+  const s = safeText(v).trim().toLowerCase();
+  if(!s) return "";
+  if(s.startsWith("occ")) return "Occupied";
+  if(s.startsWith("res")) return "Reserved";
+  if(s.startsWith("ava")) return "Available";
+  if(s==="1" || s==="yes" || s==="y") return "Occupied";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+async function readSpreadsheetFile(file){
+  if(!file) return [];
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type:"array" });
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval:"" });
+  return Array.isArray(rows) ? rows : [];
+}
+
+function mapImportedRow(row){
+  const plotCode = pickField(row, ["plot_code","plot","grave","plotnumber","plot_no","plotid","plot_id"]);
+  const owner = pickField(row, ["owner_name","owner","name","full_name","ownername"]);
+  const gender = pickField(row, ["gender","sex"]);
+  const status = pickField(row, ["status","plot_status","plotstatus"]);
+
+  // deceased fields
+  const deceased_name = pickField(row, ["deceased_name","deceased","name_of_deceased","deceased_full_name"]);
+  const deceased_id = pickField(row, ["deceased_id","id","id_number","passport"]);
+  const date_of_death = pickField(row, ["date_of_death","dod","death_date"]);
+  const burial_date = pickField(row, ["burial_date","date_of_burial","burial"]);
+  const undertaker = pickField(row, ["undertaker","funeral_home","funeral_parlor"]);
+  const ref_no = pickField(row, ["ref_no","reference","reference_no","ref"]);
+  const notes = pickField(row, ["notes","note","remarks","comment"]);
+
+  return {
+    plot_code: safeText(plotCode).trim(),
+    owner_name: safeText(owner).trim(),
+    gender: safeText(gender).trim(),
+    status: normalizeStatus(status) || "",
+    deceased_name: safeText(deceased_name).trim(),
+    deceased_id: safeText(deceased_id).trim(),
+    date_of_death: safeText(date_of_death).trim(),
+    burial_date: safeText(burial_date).trim(),
+    undertaker: safeText(undertaker).trim(),
+    ref_no: safeText(ref_no).trim(),
+    notes: safeText(notes).trim()
+  };
+}
+
+function setImportMsg(text, ok=true){
+  importMsg.innerHTML = ok
+    ? `<span class="text-emerald-300 font-semibold">${text}</span>`
+    : `<span class="text-red-300 font-semibold">${text}</span>`;
+}
+
+function summarizeMapping(mapped){
+  const keys = Object.keys(mapped).filter(k => safeText(mapped[k]).trim() !== "");
+  return keys.length ? keys.join(", ") : "—";
+}
+
+async function doImportPreview(){
+  const file = importFileInput.files && importFileInput.files[0];
+  if(!file) return setImportMsg("Choose a file first.", false);
+
+  try{
+    setImportMsg("Reading file…", true);
+    const rows = await readSpreadsheetFile(file);
+    if(!rows.length){
+      IMPORT_STATE = { rows:[], preview:null };
+      importPreviewBox.textContent = "";
+      return setImportMsg("No rows found in file.", false);
+    }
+
+    const mappedFirst = mapImportedRow(rows[0]);
+    const previewRows = rows.slice(0, Math.min(5, rows.length)).map(r => mapImportedRow(r));
+
+    IMPORT_STATE = { rows, preview: { mappedFirst, previewRows } };
+
+    const info = {
+      total_rows: rows.length,
+      first_row_mapped_fields: summarizeMapping(mappedFirst),
+      mode: importModeSelect.value,
+      sample_mapped_rows: previewRows
+    };
+
+    importPreviewBox.textContent = JSON.stringify(info, null, 2);
+    setImportMsg(`Preview ready ✅ Found ${rows.length} rows.`, true);
+  }catch(e){
+    console.error(e);
+    setImportMsg(`Import preview failed: ${e.message || e}`, false);
+  }
+}
+
+function isEmptyPlot(p){
+  return !safeText(p.owner_name).trim();
+}
+function sortPlotsByCode(arr){
+  return (arr||[]).slice().sort((a,b)=>safeText(a.plot_code).localeCompare(safeText(b.plot_code)));
+}
+
+async function applyPatchToPlotSafe(plot, payload){
+  // Try server if plot is server-side
+  if(!isLocalPlot(plot)){
+    try{
+      await apiPatch(`/api/plots/${plot.id}`, payload);
+      return { ok:true, where:"server" };
+    }catch(e){
+      // fallback local
+    }
+  }
+
+  const updated = { ...plot, ...payload };
+  if(isLocalPlot(plot)) updateLocalPlot(updated);
+  else addLocalPlot({ ...updated, id: makeLocalPlotId(), cemetery_id: CURRENT.cemeteryId, __local:true });
+  return { ok:true, where:"local" };
+}
+
+/* Single apply (kept) */
+async function applyImportToPlot(){
+  const plotId = importPlotSelect.value;
+  if(!plotId) return setImportMsg("Choose a plot first.", false);
+
+  const file = importFileInput.files && importFileInput.files[0];
+  if(!file) return setImportMsg("Choose a file first.", false);
+
+  if(!IMPORT_STATE.preview){
+    await doImportPreview();
+  }
+  if(!IMPORT_STATE.rows || !IMPORT_STATE.rows.length){
+    return;
+  }
+
+  const plot = CURRENT.plots.find(p=>String(p.id)===String(plotId));
+  if(!plot) return setImportMsg("Plot not found. Load plots again.", false);
+
+  const mapped = mapImportedRow(IMPORT_STATE.rows[0]);
+
+  const payload = {};
+  if(mapped.owner_name) payload.owner_name = mapped.owner_name;
+  if(mapped.gender) payload.gender = mapped.gender;
+  if(mapped.status) payload.status = mapped.status;
+
+  const hasDeceased = !!(mapped.deceased_name || mapped.deceased_id || mapped.date_of_death || mapped.burial_date || mapped.undertaker || mapped.ref_no || mapped.notes);
+
+  if(!Object.keys(payload).length && !hasDeceased){
+    return setImportMsg("Nothing to apply (mapped fields were empty).", false);
+  }
+
+  try{
+    if(Object.keys(payload).length){
+      const res = await applyPatchToPlotSafe(plot, payload);
+      addAuditLocal({
+        ts: nowISO(),
+        action: res.where==="server" ? "IMPORT_OLD_DATA" : "IMPORT_OLD_DATA_LOCAL",
+        cemetery: CURRENT.cemeteryName,
+        plot: safeText(plot.plot_code),
+        user: actorText(),
+        details: `Applied fields: ${Object.keys(payload).join(", ")} (${res.where})`
+      });
+    }
+
+    if(hasDeceased){
+      const certObj = {
+        plot_id: String(plot.id),
+        plot_code: safeText(plot.plot_code),
+        cemetery: safeText(CURRENT.cemeteryName),
+        municipality: "Swellendam Municipality",
+        deceased_name: mapped.deceased_name,
+        deceased_id: mapped.deceased_id,
+        date_of_death: mapped.date_of_death,
+        burial_date: mapped.burial_date,
+        undertaker: mapped.undertaker,
+        ref_no: mapped.ref_no,
+        notes: mapped.notes,
+        updated_at: nowISO()
+      };
+      saveCertForPlot(plot.id, certObj);
+      addAuditLocal({
+        ts: nowISO(),
+        action: "IMPORT_DECEASED_CERT",
+        cemetery: CURRENT.cemeteryName,
+        plot: safeText(plot.plot_code),
+        user: actorText(),
+        details: "Imported deceased fields into local register"
+      });
+    }
+
+    setImportMsg("Applied ✅ (single).", true);
+    notifyAsync("Old Data Imported (Single)", `Imported old data into plot ${safeText(plot.plot_code)}. Fields: ${Object.keys(payload).join(", ") || "deceased only"}`, { cemetery: CURRENT.cemeteryName, plot_code: safeText(plot.plot_code) }, `import1:${plot.id}:${nowISO().slice(0,10)}`);
+    await refreshAfterChange();
+  }catch(e){
+    console.error(e);
+    setImportMsg(`Apply failed: ${e.message || e}`, false);
+  }
+}
+
+/* ✅ MASS apply */
+async function applyImportMass(){
+  if(!CURRENT.cemeteryId || !CURRENT.plots.length){
+    return setImportMsg("Load plots first (View plots), then use Mass Apply.", false);
+  }
+  const file = importFileInput.files && importFileInput.files[0];
+  if(!file) return setImportMsg("Choose a file first.", false);
+
+  if(!IMPORT_STATE.preview){
+    await doImportPreview();
+  }
+  if(!IMPORT_STATE.rows || !IMPORT_STATE.rows.length){
+    return setImportMsg("No rows to import.", false);
+  }
+
+  const mode = importModeSelect.value || "auto_empty";
+  const mappedRows = IMPORT_STATE.rows.map(r => mapImportedRow(r));
+
+  // Build target plot list
+  let assignments = []; // [{ rowIndex, plot }]
+  const plotsSorted = sortPlotsByCode(CURRENT.plots);
+
+  if(mode === "match_plot_code"){
+    const mapByCode = new Map();
+    plotsSorted.forEach(p => mapByCode.set(safeText(p.plot_code).trim().toLowerCase(), p));
+
+    mappedRows.forEach((r, i)=>{
+      const code = safeText(r.plot_code).trim().toLowerCase();
+      if(!code) return;
+      const plot = mapByCode.get(code);
+      if(plot) assignments.push({ rowIndex:i, plot });
+    });
+
+    if(!assignments.length){
+      return setImportMsg("No matches found. Make sure your file has a plot_code column that matches your plot codes.", false);
+    }
+  }else{
+    // auto_empty
+    const emptyPlots = plotsSorted.filter(p => isEmptyPlot(p));
+    if(!emptyPlots.length){
+      return setImportMsg("No empty plots found (owner_name is not blank). Clear owner_name on plots you want to import into, or use Match by plot_code.", false);
+    }
+    const max = Math.min(mappedRows.length, emptyPlots.length);
+    for(let i=0;i<max;i++){
+      assignments.push({ rowIndex:i, plot: emptyPlots[i] });
+    }
+    if(mappedRows.length > emptyPlots.length){
+      setImportMsg(`⚠️ File has ${mappedRows.length} rows but only ${emptyPlots.length} empty plots loaded. Will apply first ${emptyPlots.length} rows.`, false);
+    }
+  }
+
+  const total = assignments.length;
+  if(total<=0) return setImportMsg("Nothing to apply.", false);
+
+  if(!confirm(`Apply ${total} records now? This will update plots (server if available) and store deceased register locally.`)){
+    return setImportMsg("Cancelled.", false);
+  }
+
+  let okCount = 0;
+  let serverCount = 0;
+  let localCount = 0;
+  let deceasedCount = 0;
+
+  setImportMsg(`Applying ${total} records…`, true);
+
+  for(let idx=0; idx<total; idx++){
+    const a = assignments[idx];
+    const plot = a.plot;
+    const row = mappedRows[a.rowIndex];
+
+    const payload = {};
+    if(row.owner_name) payload.owner_name = row.owner_name;
+    if(row.gender) payload.gender = row.gender;
+    if(row.status) payload.status = row.status;
+
+    const hasDeceased = !!(row.deceased_name || row.deceased_id || row.date_of_death || row.burial_date || row.undertaker || row.ref_no || row.notes);
+
+    try{
+      if(Object.keys(payload).length){
+        const res = await applyPatchToPlotSafe(plot, payload);
+        if(res.where==="server") serverCount++;
+        else localCount++;
+      }
+
+      if(hasDeceased){
+        const certObj = {
+          plot_id: String(plot.id),
+          plot_code: safeText(plot.plot_code),
+          cemetery: safeText(CURRENT.cemeteryName),
+          municipality: "Swellendam Municipality",
+          deceased_name: row.deceased_name,
+          deceased_id: row.deceased_id,
+          date_of_death: row.date_of_death,
+          burial_date: row.burial_date,
+          undertaker: row.undertaker,
+          ref_no: row.ref_no,
+          notes: row.notes,
+          updated_at: nowISO()
+        };
+        saveCertForPlot(plot.id, certObj);
+        deceasedCount++;
+      }
+
+      okCount++;
+      if(idx % 10 === 0 || idx === total-1){
+        setImportMsg(`Applying… ${idx+1}/${total}`, true);
+      }
+    }catch(e){
+      console.warn("Mass apply row failed:", e);
+    }
+  }
+
+  addAuditLocal({
+    ts: nowISO(),
+    action: "IMPORT_OLD_DATA_MASS",
+    cemetery: CURRENT.cemeteryName,
+    plot: "—",
+    user: actorText(),
+    details: `Applied ${okCount}/${total}. Plot updates: server=${serverCount}, local=${localCount}. Deceased saved=${deceasedCount}. Mode=${mode}`
+  });
+
+  setImportMsg(`✅ Mass import done. Applied ${okCount}/${total}. (server=${serverCount}, local=${localCount}, deceased=${deceasedCount})`, true);
+  notifyAsync("Old Data Imported (Mass)", `Mass import completed in ${CURRENT.cemeteryName}. Applied ${okCount}/${total}. server=${serverCount}, local=${localCount}, deceased=${deceasedCount}. Mode=${mode}`, { cemetery: CURRENT.cemeteryName }, `importMass:${CURRENT.cemeteryId}:${nowISO().slice(0,10)}`);
+  await refreshAfterChange();
+}
+
+/* =========================
+   Deceased Register Table
+========================= */
+function certsToRows(scope){
+  const allMap = readAllCerts();
+  const out = [];
+  const currentName = safeText(CURRENT.cemeteryName);
+
+  Object.keys(allMap||{}).forEach(plotId=>{
+    const c = allMap[plotId];
+    if(!c) return;
+
+    // scope filter
+    if(scope==="current" && currentName && safeText(c.cemetery) && safeText(c.cemetery)!==currentName) return;
+
+    out.push({
+      plot_id: plotId,
+      plot_code: safeText(c.plot_code),
+      cemetery: safeText(c.cemetery),
+      deceased_name: safeText(c.deceased_name),
+      deceased_id: safeText(c.deceased_id),
+      date_of_death: safeText(c.date_of_death),
+      burial_date: safeText(c.burial_date),
+      undertaker: safeText(c.undertaker),
+      ref_no: safeText(c.ref_no),
+      notes: safeText(c.notes),
+      updated_at: safeText(c.updated_at)
+    });
+  });
+
+  // Sort by plot_code then updated
+  out.sort((a,b)=>{
+    const pc = a.plot_code.localeCompare(b.plot_code);
+    if(pc!==0) return pc;
+    return safeText(b.updated_at).localeCompare(safeText(a.updated_at));
+  });
+
+  return out;
+}
+
+function renderDeceasedRegister(){
+  if(!deceasedTbody) return;
+
+  const scope = deceasedScope ? deceasedScope.value : "current";
+  const q = safeText(deceasedSearch ? deceasedSearch.value : "").trim().toLowerCase();
+
+  const rows = certsToRows(scope).filter(r=>{
+    if(!q) return true;
+    const hay = [
+      r.plot_code, r.cemetery, r.deceased_name, r.deceased_id, r.undertaker, r.ref_no, r.burial_date, r.date_of_death
+    ].join(" ").toLowerCase();
+    return hay.includes(q);
+  });
+
+  deceasedSummary.textContent = `Showing ${rows.length} deceased record(s) • scope=${scope}${CURRENT.cemeteryName ? ` • cemetery=${CURRENT.cemeteryName}` : ""}`;
+
+  if(!rows.length){
+    deceasedTbody.innerHTML = `<tr><td colspan="8" class="text-white/70">No deceased entries found.</td></tr>`;
+    return;
+  }
+
+  deceasedTbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><b>${safeText(r.plot_code)||"—"}</b></td>
+      <td>${safeText(r.deceased_name)||"—"}</td>
+      <td>${safeText(r.deceased_id)||"—"}</td>
+      <td>${safeText(r.date_of_death)||"—"}</td>
+      <td>${safeText(r.burial_date)||"—"}</td>
+      <td>${safeText(r.undertaker)||"—"}</td>
+      <td>${safeText(r.ref_no)||"—"}</td>
+      <td>${safeText(r.updated_at)||"—"}</td>
+    </tr>
+  `).join("");
+}
+
+function exportDeceasedCSV(){
+  const scope = deceasedScope ? deceasedScope.value : "current";
+  const q = safeText(deceasedSearch ? deceasedSearch.value : "").trim().toLowerCase();
+
+  const rows = certsToRows(scope).filter(r=>{
+    if(!q) return true;
+    const hay = [
+      r.plot_code, r.cemetery, r.deceased_name, r.deceased_id, r.undertaker, r.ref_no, r.burial_date, r.date_of_death
+    ].join(" ").toLowerCase();
+    return hay.includes(q);
+  });
+
+  const header = ["cemetery","plot_code","deceased_name","deceased_id","date_of_death","burial_date","undertaker","ref_no","notes","updated_at"];
+  const out = [header];
+
+  rows.forEach(r=>{
+    out.push([
+      r.cemetery, r.plot_code, r.deceased_name, r.deceased_id, r.date_of_death, r.burial_date, r.undertaker, r.ref_no, r.notes, r.updated_at
+    ]);
+  });
+
+  const csv = out.map(r=>r.map(v=>`"${String(v||"").replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `deceased_register_${scope}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* =========================
+   Reports (real data)
+========================= */
+function renderReports(){
+  const sec = document.getElementById("reportsSection");
+  if(!sec || sec.classList.contains("hidden")) return;
+
+  const plots = CURRENT.plots || [];
+  const counts = countStatuses(plots);
+  const empty = plots.filter(p=>isEmptyPlot(p)).length;
+
+  const certRows = certsToRows("current");
+  document.getElementById("rPlotsLoaded").textContent = plots.length;
+  document.getElementById("rOccupied").textContent = counts.Occupied;
+  document.getElementById("rDeceased").textContent = certRows.length;
+  document.getElementById("rEmpty").textContent = empty;
+
+  const tbody = document.getElementById("reportsTbody");
+  if(!plots.length){
+    tbody.innerHTML = `<tr><td colspan="6" class="text-white/70">Load plots first.</td></tr>`;
+    return;
+  }
+
+  const certMap = readAllCerts();
+  const rows = sortPlotsByCode(plots).map(p=>{
+    const c = certMap[String(p.id)] || null;
+    return {
+      plot_code: safeText(p.plot_code),
+      status: safeText(p.status||"Available"),
+      owner_name: safeText(p.owner_name),
+      gender: safeText(p.gender),
+      deceased_name: c ? safeText(c.deceased_name) : "",
+      burial_date: c ? safeText(c.burial_date) : ""
+    };
+  });
+
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><b>${r.plot_code}</b></td>
+      <td>${r.status}</td>
+      <td>${r.owner_name||"—"}</td>
+      <td>${r.gender||"—"}</td>
+      <td>${r.deceased_name||"—"}</td>
+      <td>${r.burial_date||"—"}</td>
+    </tr>
+  `).join("");
+}
+
+/* =========================
+   CSV export
+========================= */
+function exportCSV(){
+  if(!CURRENT.plots.length) return alert("Load plots first.");
+  const rows = [["plot_code","status","owner_name","gender","has_polygon","local"]];
+  CURRENT.plots.forEach(p=>{
+    const hasPoly = (Array.isArray(p.coords) && p.coords.length>=3) ? "yes" : "no";
+    rows.push([
+      safeText(p.plot_code),
+      safeText(p.status||"Available"),
+      safeText(p.owner_name||""),
+      safeText(p.gender||""),
+      hasPoly,
+      isLocalPlot(p) ? "yes" : "no"
+    ]);
+  });
+
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${safeText(CURRENT.cemeteryName||"cemetery")}_plots.csv`.replaceAll(" ","_");
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* =========================
+   Audit
+========================= */
+function renderAudit(){
+  const tbody = document.getElementById("auditTbody");
+  const all = readAuditAll();
+  if(!all.length){
+    tbody.innerHTML = `<tr><td colspan="6" class="text-white/70">No audit entries yet.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = all.map(a=>`
+    <tr>
+      <td>${safeText(a.ts)}</td>
+      <td>${safeText(a.action)}</td>
+      <td>${safeText(a.cemetery||"")}</td>
+      <td>${safeText(a.plot||"")}</td>
+      <td>${safeText(a.user||"")}</td>
+      <td>${safeText(a.details||"")}</td>
+    </tr>
+  `).join("");
+}
+function exportAuditCSV(){
+  const all = readAuditAll();
+  const rows = [["ts","action","cemetery","plot","user","details"]];
+  all.forEach(a=>rows.push([a.ts,a.action,a.cemetery,a.plot,a.user,a.details]));
+  const csv = rows.map(r=>r.map(v=>`"${String(v||"").replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `audit_log.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* =========================
+   ✅ Reports button fix (REAL DATA + SAFE bind)
+========================= */
+function bindReportsButton(){
+  const btn = document.getElementById("reportBtn");
+  const sec = document.getElementById("reportsSection");
+
+  if(!btn || !sec){
+    console.warn("Reports binding failed:", { btnFound: !!btn, sectionFound: !!sec });
+    return;
+  }
+
+  if(btn.dataset.bound === "1") return;
+  btn.dataset.bound = "1";
+
+  btn.addEventListener("click", () => {
+    sec.classList.toggle("hidden");
+    renderReports();
+    requestAnimationFrame(() => {
+      sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  const refreshBtn = document.getElementById("reportsRefreshBtn");
+  if(refreshBtn && refreshBtn.dataset.bound!=="1"){
+    refreshBtn.dataset.bound="1";
+    refreshBtn.addEventListener("click", renderReports);
+  }
+
+  const expBtn = document.getElementById("reportsExportDeceasedBtn");
+  if(expBtn && expBtn.dataset.bound!=="1"){
+    expBtn.dataset.bound="1";
+    expBtn.addEventListener("click", exportDeceasedCSV);
+  }
+}
+
+/* =========================
+   Buttons
+========================= */
+viewPlotsBtn.addEventListener("click", async ()=>{
+  const cemeteryId = cemeterySelect.value;
+  if(!cemeteryId) return alert("Select a cemetery.");
+
+  CURRENT.cemeteryId = cemeteryId;
+  CURRENT.cemeteryName = cemeterySelect.options[cemeterySelect.selectedIndex]?.textContent || "";
+
+  setStatus("Loading plots…");
+  await loadPlotsForCemetery(cemeteryId);
+
+  setStatus(`✅ Loaded ${CURRENT.plots.length} plots for ${CURRENT.cemeteryName}`);
+  refreshAllViews();
+});
+
+resetCemBtn.addEventListener("click", ()=>{
+  cemeterySelect.value = "";
+  CURRENT = { cemeteryId:null, cemeteryName:"", plots:[] };
+  ACTIVE_PLOT = null;
+  setActivePlotUI(null);
+  analyticsSection.classList.add("hidden");
+  plotSection.classList.add("hidden");
+  statusUpdateSection.classList.add("hidden");
+  importOldDataSection.classList.add("hidden");
+  deceasedRegisterSection.classList.add("hidden");
+  document.getElementById("reportsSection").classList.add("hidden");
+  setStatus("");
+});
+
+addPlotBtn.addEventListener("click", createSinglePlot);
+massCreateBtn.addEventListener("click", massCreatePlots);
+
+clearLocalBtn.addEventListener("click", async ()=>{
+  const cemeteryId = cemeterySelect.value || CURRENT.cemeteryId;
+  if(!cemeteryId) return alert("Select a cemetery first.");
+  if(!confirm("Clear ONLY local plots for this cemetery?")) return;
+
+  clearLocalPlotsForCemetery(cemeteryId);
+  addAuditLocal({ ts:nowISO(), action:"CLEAR_LOCAL_PLOTS", cemetery:CURRENT.cemeteryName, plot:"—", user:actorText(), details:"Cleared local plots" });
+  setStatus("✅ Local plots cleared.");
+  notifyAsync("Local Plots Cleared", `Local plots cleared for cemetery ${safeText(CURRENT.cemeteryName)}.`, { cemetery: CURRENT.cemeteryName }, `clearLocal:${cemeteryId}:${nowISO().slice(0,10)}`);
+  await refreshAfterChange();
+});
+
+applyStatusBtn.addEventListener("click", applyQuickStatus);
+
+analyticsRefreshBtn.addEventListener("click", ()=> renderAnalytics());
+analyticsPlay4DBtn.addEventListener("click", toggle4DPlay);
+burialsFilter.addEventListener("change", ()=> renderAnalytics());
+
+exportBtn.addEventListener("click", exportCSV);
+
+/* ✅ Import buttons */
+importPreviewBtn.addEventListener("click", doImportPreview);
+importApplyBtn.addEventListener("click", applyImportToPlot);
+importApplyMassBtn.addEventListener("click", applyImportMass);
+
+/* Deceased buttons */
+document.getElementById("deceasedRefreshBtn").addEventListener("click", renderDeceasedRegister);
+document.getElementById("deceasedExportBtn").addEventListener("click", exportDeceasedCSV);
+document.getElementById("deceasedClearBtn").addEventListener("click", ()=>{
+  if(!confirm("Clear ALL local deceased register entries? (This is only local demo storage)")) return;
+  clearAllCerts();
+  addAuditLocal({ ts:nowISO(), action:"CLEAR_DECEASED_REGISTER", cemetery:CURRENT.cemeteryName, plot:"—", user:actorText(), details:"Cleared local deceased register" });
+  notifyAsync("Deceased Register Cleared", `All local deceased register entries were cleared.`, { cemetery: CURRENT.cemeteryName }, `clearDeceased:${nowISO().slice(0,10)}`);
+  renderDeceasedRegister();
+  renderReports();
+});
+deceasedSearch.addEventListener("input", renderDeceasedRegister);
+deceasedScope.addEventListener("change", renderDeceasedRegister);
+
+document.getElementById("auditBtn").addEventListener("click", ()=>{
+  const sec = document.getElementById("auditSection");
+  sec.classList.toggle("hidden");
+  renderAudit();
+  sec.scrollIntoView({behavior:"smooth", block:"start"});
+});
+document.getElementById("auditRefreshBtn").addEventListener("click", renderAudit);
+document.getElementById("auditExportBtn").addEventListener("click", exportAuditCSV);
+
+document.getElementById("logoutBtn").addEventListener("click", ()=>{
+  localStorage.removeItem("authToken");
+  window.location.href = "login.html";
+});
+
+/* =========================
+   Init
+========================= */
+(async function init(){
+  try{
+    requireLogin();
+    setStatus(`API: ${API_BASE}`);
+    setActivePlotUI(null);
+
+    // init email (safe, no-op if not configured)
+    initEmailJSIfPossible();
+
+    await loadCemeteriesIntoSelect();
+
+    bindReportsButton();
+    document.addEventListener("DOMContentLoaded", bindReportsButton);
+  }catch(e){
+    console.error(e);
+    setStatus("⚠️ Could not load cemeteries. Check API_BASE / server.");
+  }
+})();
+</script>
+
+</body>
+</html>
