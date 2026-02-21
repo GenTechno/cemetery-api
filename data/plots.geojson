@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "CER-01-R01-P01",
+        "status": "occupied",
+        "section": "A",
+        "row": "01",
+        "plot_no": "01",
+        "grave_type": "burial",
+        "deceased_name": "Example Person"
+      },
+      "geometry": { "type": "Point", "coordinates": [19.310900, -33.368200] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "plot_id": "CER-01-R01-P02",
+        "status": "available",
+        "section": "A",
+        "row": "01",
+        "plot_no": "02",
+        "grave_type": "burial"
+      },
+      "geometry": { "type": "Point", "coordinates": [19.311050, -33.368250] }
+    }
+  ]
+}
