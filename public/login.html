@@ -200,14 +200,16 @@
   </div>
 
   <script>
-    // ✅ Works on localhost or cloud later
+    // ✅ Works on localhost + Render
+    // Local:  http://localhost:3000
+    // Cloud:  same domain (no :3000)
     const API_BASE =
       (localStorage.getItem("API_BASE")) ||
       ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
         ? "http://localhost:3000"
-        : `http://${location.hostname}:3000`);
+        : "");
 
-    document.getElementById("apiHint").textContent = API_BASE;
+    document.getElementById("apiHint").textContent = API_BASE || "(same domain)";
 
     // Demo ribbon (optional) - won't break if endpoint missing
     fetch(`${API_BASE}/api/config`)
@@ -259,9 +261,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
