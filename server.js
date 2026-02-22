@@ -259,7 +259,12 @@ app.get("/health", async (req, res) => {
     const r = await pool.query("SELECT NOW() as now");
     res.json({ ok: true, dbTime: r.rows[0].now });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    console.error("HEALTH ERROR:", e); // shows full error in logs
+    res.status(500).json({
+      ok: false,
+      error: e?.message || String(e),
+      code: e?.code || null,
+    });
   }
 });
 
