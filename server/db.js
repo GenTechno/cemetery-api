@@ -1,18 +1,15 @@
 import "dotenv/config";
 import pg from "pg";
+import dns from "dns";
+
+// ✅ Prefer IPv4 results first (fixes ENETUNREACH IPv6 issues)
+dns.setDefaultResultOrder("ipv4first");
 
 const { Pool } = pg;
 
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
-const hasPgParts =
-  process.env.PGHOST &&
-  process.env.PGUSER &&
-  process.env.PGDATABASE;
-
-export const pool = hasDatabaseUrl
+export const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      // Render / most managed Postgres commonly need SSL
       ssl: { rejectUnauthorized: false },
     })
   : new Pool({
@@ -21,11 +18,5 @@ export const pool = hasDatabaseUrl
       database: process.env.PGDATABASE,
       user: process.env.PGUSER,
       password: process.env.PGPASSWORD,
-      // Azure PostgreSQL requires SSL (and this is also fine for many hosted DBs)
       ssl: { rejectUnauthorized: false },
     });
-
-// Optional: helpful log (won't crash if missing)
-if (!hasDatabaseUrl && !hasPgParts) {
-  console.warn("⚠️ DB env not set. Provide DATABASE_URL or PGHOST/PGUSER/PGDATABASE/PGPASSWORD.");
-}
