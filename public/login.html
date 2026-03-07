@@ -177,7 +177,7 @@
                 <div class="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/70">
                   <div class="font-semibold text-white/80">Troubleshooting</div>
                   <div class="mt-1 leading-relaxed">
-                    If login fails, check that your API is reachable.
+                    If login fails, check that your API server is running on port <span class="font-mono">3000</span>.
                     Press <span class="font-mono">F12</span> → Console to view errors.
                   </div>
                 </div>
@@ -200,16 +200,16 @@
   </div>
 
   <script>
-    // ✅ Localhost uses port 3000. Cloud/Render uses same-origin HTTPS (no :3000).
-    const isLocal = (location.hostname === "localhost" || location.hostname === "127.0.0.1");
-
+    // ✅ Works on localhost or cloud later
     const API_BASE =
       (localStorage.getItem("API_BASE")) ||
-      (isLocal ? "http://localhost:3000" : location.origin);
+      ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
+        ? "http://localhost:3000"
+        : `http://${location.hostname}:3000`);
 
     document.getElementById("apiHint").textContent = API_BASE;
 
-    // Demo ribbon (optional)
+    // Demo ribbon (optional) - won't break if endpoint missing
     fetch(`${API_BASE}/api/config`)
       .then(r => r.json())
       .then(cfg => {
@@ -251,9 +251,7 @@
         localStorage.setItem("userPermission", data.user?.permission || "read");
 
         setMsg(true, "Login successful ✅ Redirecting...");
-
-        // ✅ Your dashboard file is index.html (not dashboard.html)
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
       } catch (err) {
         setMsg(false, "Network/API error: " + err.message);
       }
@@ -261,3 +259,9 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+

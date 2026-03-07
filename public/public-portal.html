@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Swellendam Cemetery • Public Portal</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    html, body { height:100%; }
+
+    /* SAME grid pattern as login / arcgis-demo */
+    .grid-pattern{
+      background-image:
+        linear-gradient(to right, rgba(15,23,42,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15,23,42,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* BIG map like arcgis-demo (fills screen under topbar) */
+    #map{
+      width: 100%;
+      height: calc(100vh - 72px); /* topbar height */
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-900">
+  <div class="min-h-screen grid-pattern">
+
+    <!-- TOP BAR (matches arcgis-demo style) -->
+    <div class="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur">
+      <div class="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <img src="assets/logo.png" alt="Municipality Logo" class="w-10 h-10 rounded-xl bg-white p-2"/>
+          <div class="leading-tight">
+            <div class="text-white font-semibold">Swellendam Municipality</div>
+            <div class="text-white/60 text-xs">Public Cemetery Portal • Search plots</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a href="login.html"
+             class="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white text-sm
+                    hover:bg-white/10 transition active:scale-[0.99]">
+            Admin Login
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <main class="max-w-[1400px] mx-auto px-4 py-4">
+      <div class="relative">
+
+        <!-- BIG MAP -->
+        <div id="map"></div>
+
+        <!-- ✅ OVERLAY PANEL (UPGRADED with categories) -->
+        <section class="absolute top-4 left-4 right-4 z-[500]">
+          <!-- Search bar -->
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
+            <div class="p-5">
+              <div class="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 class="text-white text-lg md:text-xl font-extrabold tracking-tight">Search a loved one</h2>
+                  <p class="text-white/60 text-xs md:text-sm mt-1">
+                    Search plots by different categories (public read-only).
+                  </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <div id="countBadge"
+                       class="text-xs px-2 py-1 rounded-full bg-white/5 border border-white/10 text-white/80">
+                    0
+                  </div>
+
+                  <button id="resetMapBtn"
+                    class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white text-xs
+                           hover:bg-white/10 transition active:scale-[0.99]">
+                    Reset map
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filters row -->
+              <div class="mt-4 grid grid-cols-1 md:grid-cols-12 gap-2">
+                <!-- Category -->
+                <div class="md:col-span-3">
+                  <label class="text-white/70 text-xs font-semibold">Category</label>
+                  <select id="category"
+                    class="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none
+                           focus:ring-4 focus:ring-blue-400/20 focus:border-blue-300/40">
+                    <option value="all">All (Name + Plot Code)</option>
+                    <option value="owner_name">Deceased name (owner_name)</option>
+                    <option value="plot_code">Plot code</option>
+                    <option value="status">Status</option>
+                    <option value="rowcol">Row / Column</option>
+                  </select>
+                </div>
+
+                <!-- Search text -->
+                <div class="md:col-span-6">
+                  <label class="text-white/70 text-xs font-semibold">Search</label>
+                  <input
+                    id="q"
+                    class="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white
+                           placeholder:text-white/40 outline-none
+                           focus:ring-4 focus:ring-blue-400/20 focus:border-blue-300/40"
+                    placeholder="Example: Davids • A-12 • Occupied • Row 2 Col 5"
+                  />
+                </div>
+
+                <!-- Optional cemetery filter (client-side) -->
+                <div class="md:col-span-3">
+                  <label class="text-white/70 text-xs font-semibold">Cemetery (optional)</label>
+                  <input
+                    id="cemFilter"
+                    class="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white
+                           placeholder:text-white/40 outline-none
+                           focus:ring-4 focus:ring-blue-400/20 focus:border-blue-300/40"
+                    placeholder="Type cemetery name"
+                  />
+                </div>
+
+                <!-- Buttons -->
+                <div class="md:col-span-12 flex gap-2 mt-1">
+                  <button id="searchBtn"
+                    class="flex-1 rounded-2xl bg-white text-slate-900 font-semibold py-3
+                           hover:bg-slate-100 transition active:scale-[0.99]">
+                    Search
+                  </button>
+
+                  <button id="clearBtn"
+                    class="rounded-2xl border border-white/10 bg-white/5 text-white font-semibold px-6
+                           hover:bg-white/10 transition active:scale-[0.99]">
+                    Clear
+                  </button>
+                </div>
+
+                <div id="msg" class="md:col-span-12 text-sm mt-1"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results panel -->
+          <div class="mt-3 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
+            <div class="p-5">
+              <div class="flex items-start justify-between gap-2 flex-wrap">
+                <div>
+                  <div class="text-white font-semibold">Results</div>
+                  <div class="text-white/60 text-xs mt-1">Click a result to zoom to it on the map.</div>
+                </div>
+              </div>
+
+              <div id="results" class="mt-4 space-y-3 max-h-[34vh] overflow-auto pr-1"></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // ---------- API base ----------
+    const API_BASE =
+      (localStorage.getItem("API_BASE")) ||
+      ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
+        ? "http://localhost:3000"
+        : `http://${location.hostname}:3000`);
+
+    // ---------- UI helpers ----------
+    const msgEl = document.getElementById("msg");
+    function setMsg(ok, text) {
+      msgEl.innerHTML = ok
+        ? `<span class="text-emerald-300 font-medium">${text}</span>`
+        : `<span class="text-red-300 font-medium">${text}</span>`;
+    }
+
+    // ---------- Map ----------
+    let map, plotsLayer;
+
+    // Swellendam-ish defaults (adjust if you want)
+    const DEFAULT_CENTER = [-34.02, 20.44];
+    const DEFAULT_ZOOM = 16;
+
+    function initMap() {
+      map = L.map("map", { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM });
+
+      // Esri Imagery (feels closer to ArcGIS)
+      const esriSat = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 20, attribution: "Tiles © Esri" }
+      );
+
+      // Esri labels overlay
+      const esriLabels = L.tileLayer(
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 20, attribution: "Labels © Esri" }
+      );
+
+      // Optional Streets (fallback)
+      const osm = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { maxZoom: 20, attribution: "© OpenStreetMap" }
+      );
+
+      esriSat.addTo(map);
+      esriLabels.addTo(map);
+
+      L.control.layers(
+        { "🛰️ Satellite (Esri)": esriSat, "🗺️ Streets (OSM)": osm },
+        { "🏷️ Labels": esriLabels },
+        { collapsed: true }
+      ).addTo(map);
+
+      plotsLayer = L.featureGroup().addTo(map);
+
+      // Fix size when inside flex/layout
+      setTimeout(() => map.invalidateSize(), 200);
+    }
+
+    function resetMap() {
+      plotsLayer.clearLayers();
+      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    }
+
+    function addPlotPolygon(item, highlight=false) {
+      if (!item.coords) return null;
+
+      try {
+        const poly = L.polygon(item.coords, {
+          color: highlight ? "#60a5fa" : "#94a3b8",
+          weight: highlight ? 4 : 2,
+          fillColor: highlight ? "#60a5fa" : "#94a3b8",
+          fillOpacity: highlight ? 0.18 : 0.10
+        });
+
+        const popupHtml = `
+          <div style="font-family:Arial,sans-serif;font-size:12px;">
+            <div><b>${item.plot_code || "-"}</b></div>
+            <div>${item.cemetery_name || "-"}</div>
+            <div>Status: ${item.status || "-"}</div>
+            <div>Row/Col: ${item.row_num ?? "-"} / ${item.col_num ?? "-"}</div>
+          </div>
+        `;
+        poly.bindPopup(popupHtml);
+        poly.addTo(plotsLayer);
+        return poly;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function zoomToPolygon(poly) {
+      try {
+        map.fitBounds(poly.getBounds(), { padding: [22, 22] });
+        poly.openPopup();
+      } catch (_) {}
+    }
+
+    // ---------- Search ----------
+    const qEl = document.getElementById("q");
+    const searchBtn = document.getElementById("searchBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const resultsEl = document.getElementById("results");
+    const countBadge = document.getElementById("countBadge");
+    const resetMapBtn = document.getElementById("resetMapBtn");
+
+    function renderResults(items) {
+      resultsEl.innerHTML = "";
+      countBadge.textContent = String(items.length);
+
+      if (!items.length) {
+        resultsEl.innerHTML = `
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+            No matches found. Try a different spelling or plot code.
+          </div>`;
+        return;
+      }
+
+      items.forEach((item, idx) => {
+        const card = document.createElement("div");
+        card.className = "rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 cursor-pointer transition";
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="leading-tight">
+              <div class="text-white font-semibold">${item.plot_code || "-"}</div>
+              <div class="text-white/60 text-xs mt-1">${item.cemetery_name || "-"}</div>
+              <div class="text-white/70 text-xs">Status: <b>${item.status || "-"}</b></div>
+              <div class="text-white/50 text-xs">Row/Col: ${item.row_num ?? "-"} / ${item.col_num ?? "-"}</div>
+              <div class="text-white/60 text-xs mt-1">Name: <b>${item.owner_name || "-"}</b></div>
+            </div>
+            <div class="text-xs px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/70">
+              #${idx + 1}
+            </div>
+          </div>
+          <div class="text-[11px] text-white/50 mt-2">Click to show on map</div>
+        `;
+
+        card.addEventListener("click", () => {
+          plotsLayer.clearLayers();
+          const poly = addPlotPolygon(item, true);
+          if (!poly) {
+            setMsg(false, "No coordinates saved for this plot yet.");
+            return;
+          }
+          setMsg(true, "Zoomed to plot on the map.");
+          zoomToPolygon(poly);
+        });
+
+        resultsEl.appendChild(card);
+      });
+    }
+
+    // ✅ UPDATED SEARCH: supports categories + optional cemetery filter (client-side)
+    async function doSearch() {
+      const q = (qEl.value || "").trim();
+      const category = (document.getElementById("category")?.value || "all").trim();
+      const cemFilter = (document.getElementById("cemFilter")?.value || "").trim().toLowerCase();
+
+      if (q.length < 2) {
+        setMsg(false, "Please type at least 2 characters.");
+        return;
+      }
+
+      try {
+        setMsg(true, "Searching...");
+
+        // Fetch from your existing endpoint
+        const res = await fetch(`${API_BASE}/public/search?q=${encodeURIComponent(q)}`);
+        const ct = res.headers.get("content-type") || "";
+        const data = ct.includes("application/json") ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const m = typeof data === "string" ? data : (data.error || "Search failed");
+          throw new Error(m);
+        }
+
+        let items = Array.isArray(data) ? data : [];
+
+        // Optional cemetery filter (works only if API returns cemetery_name)
+        if (cemFilter) {
+          items = items.filter(it => String(it.cemetery_name || "").toLowerCase().includes(cemFilter));
+        }
+
+        const qLower = q.toLowerCase();
+
+        // Category filtering
+        if (category === "owner_name") {
+          items = items.filter(it => String(it.owner_name || "").toLowerCase().includes(qLower));
+        } else if (category === "plot_code") {
+          items = items.filter(it => String(it.plot_code || "").toLowerCase().includes(qLower));
+        } else if (category === "status") {
+          items = items.filter(it => String(it.status || "").toLowerCase().includes(qLower));
+        } else if (category === "rowcol") {
+          items = items.filter(it => {
+            const r = (it.row_num ?? "").toString().toLowerCase();
+            const c = (it.col_num ?? "").toString().toLowerCase();
+            return (`row ${r} col ${c}`.includes(qLower) || (`${r} ${c}`.includes(qLower)));
+          });
+        } else {
+          // "all" - keep what API returned
+        }
+
+        renderResults(items);
+        setMsg(true, `Found ${items.length} result(s).`);
+      } catch (e) {
+        setMsg(false, e.message);
+      }
+    }
+
+    // Events
+    searchBtn.addEventListener("click", (e) => { e.preventDefault(); doSearch(); });
+
+    clearBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      qEl.value = "";
+      document.getElementById("cemFilter").value = "";
+      document.getElementById("category").value = "all";
+      resultsEl.innerHTML = "";
+      countBadge.textContent = "0";
+      msgEl.innerHTML = "";
+      resetMap();
+    });
+
+    qEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doSearch();
+      }
+    });
+
+    resetMapBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      resetMap();
+      setMsg(true, "Map reset.");
+    });
+
+    // Startup
+    window.addEventListener("load", () => {
+      initMap();
+    });
+  </script>
+</body>
+</html>

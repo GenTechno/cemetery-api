@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cemetery GIS (ArcGIS)</title>
+
+  <!-- ArcGIS CDN -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.29/"></script>
+
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; }
+    #topbar { padding:10px 14px; border-bottom:1px solid #ddd; display:flex; gap:10px; align-items:center; }
+    #viewDiv { height: calc(100vh - 44px); width: 100%; }
+    #status { opacity:.8; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <b>Cemetery GIS</b>
+    <span id="status">Loading…</span>
+  </div>
+
+  <div id="viewDiv"></div>
+
+  <!-- Your ArcGIS logic -->
+  <script src="js/map-arcgis.js"></script>
+</body>
+</html>

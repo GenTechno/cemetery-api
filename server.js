@@ -42,6 +42,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
 const APP_MODE = String(process.env.APP_MODE || "prod").toLowerCase();
 const isDemo = APP_MODE === "demo";
 
+app.use((req, res, next) => {
+  if (req.hostname === "127.0.0.1") {
+    return res.redirect(302, `http://localhost:${PORT}${req.originalUrl}`);
+  }
+  next();
+});
+
 // LIMIT: user requested 10 plots per cemetery (for ALL cemeteries)
 const PLOTS_PER_CEMETERY_LIMIT = Number(process.env.PLOTS_PER_CEMETERY_LIMIT || 10);
 
@@ -259,12 +266,7 @@ app.get("/health", async (req, res) => {
     const r = await pool.query("SELECT NOW() as now");
     res.json({ ok: true, dbTime: r.rows[0].now });
   } catch (e) {
-    console.error("HEALTH ERROR:", e); // shows full error in logs
-    res.status(500).json({
-      ok: false,
-      error: e?.message || String(e),
-      code: e?.code || null,
-    });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
