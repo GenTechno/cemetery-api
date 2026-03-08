@@ -65,19 +65,20 @@ app.get("/api/config", (req, res) => {
 /* --------------------------------------------------
    STATIC FILES
 -------------------------------------------------- */
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  // Prevent caching HTML during dev
-  if (req.path.endsWith(".html")) res.setHeader("Cache-Control", "no-store");
-  next();
-});
-
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/basemaps", express.static(path.join(__dirname, "public", "basemaps")));
 app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
 
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
+app.get("/login.html", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "login.html"))
+);
+
+app.get("/dashboard.html", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"))
+);
+
 app.get("/public-portal", (req, res) => res.sendFile(path.join(__dirname, "public", "public-portal.html")));
 app.get("/arcgis-demo", (req, res) => res.sendFile(path.join(__dirname, "public", "arcgis-demo.html")));
 app.get("/arcgis-demo.html", (req, res) => res.sendFile(path.join(__dirname, "public", "arcgis-demo.html")));
@@ -263,13 +264,22 @@ app.post("/api/auth/login", async (req, res) => {
 -------------------------------------------------- */
 app.get("/health", async (req, res) => {
   try {
-    const r = await pool.query("SELECT NOW() as now");
-    res.json({ ok: true, dbTime: r.rows[0].now });
+    await pool.query("SELECT NOW()");
+    res.status(200).json({
+      ok: true,
+      api: true,
+      db: true
+    });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    console.error("Health check failed:", e);
+    res.status(500).json({
+      ok: false,
+      api: true,
+      db: false,
+      error: e.message || "Database connection failed"
+    });
   }
 });
-
 /* --------------------------------------------------
    CEMETERIES
 -------------------------------------------------- */

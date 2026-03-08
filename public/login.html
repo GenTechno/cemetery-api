@@ -201,61 +201,69 @@
 
   <script>
     // ✅ Works on localhost or cloud later
-    const API_BASE =
-      (localStorage.getItem("API_BASE")) ||
-      ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
-        ? "http://localhost:3000"
-        : `http://${location.hostname}:3000`);
+const DEFAULT_API_BASE =
+  window.location.protocol === "file:"
+    ? "http://localhost:3000"
+    : window.location.origin;
 
-    document.getElementById("apiHint").textContent = API_BASE;
+const RAW_SAVED_API_BASE = (localStorage.getItem("API_BASE") || "").trim();
+
+// On live HTTPS pages, ignore any saved http:// value
+const SAVED_API_BASE =
+  window.location.protocol === "https:"
+    ? (RAW_SAVED_API_BASE.startsWith("https://") ? RAW_SAVED_API_BASE : "")
+    : RAW_SAVED_API_BASE;
+
+const API_BASE = SAVED_API_BASE || DEFAULT_API_BASE;
+
+document.getElementById("apiHint").textContent = API_BASE;
 
     // Demo ribbon (optional) - won't break if endpoint missing
-    fetch(`${API_BASE}/api/config`)
-      .then(r => r.json())
-      .then(cfg => {
-        if (cfg?.isDemo) document.getElementById("demoRibbon").classList.remove("hidden");
-      })
-      .catch(() => { /* ignore */ });
+fetch(`${API_BASE}/api/config`)
+  .then(r => r.json())
+  .then(cfg => {
+    if (cfg?.isDemo) document.getElementById("demoRibbon").classList.remove("hidden");
+  })
+  .catch(() => { /* ignore */ });
 
-    const form = document.getElementById("loginForm");
-    const msg = document.getElementById("msg");
+const form = document.getElementById("loginForm");
+const msg = document.getElementById("msg");
 
-    function setMsg(ok, text) {
-      msg.innerHTML = ok
-        ? `<span class="text-emerald-300 font-medium">${text}</span>`
-        : `<span class="text-red-300 font-medium">${text}</span>`;
+function setMsg(ok, text) {
+  msg.innerHTML = ok
+    ? `<span class="text-emerald-300 font-medium">${text}</span>`
+    : `<span class="text-red-300 font-medium">${text}</span>`;
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setMsg(false, data.error || "Login failed");
+      return;
     }
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    localStorage.setItem("authToken", data.token);
+    localStorage.setItem("userRole", data.user?.role || "");
+    localStorage.setItem("userPermission", data.user?.permission || "read");
 
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value;
-
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password })
-        });
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          setMsg(false, data.error || "Login failed");
-          return;
-        }
-
-        localStorage.setItem("authToken", data.token);
-        localStorage.setItem("userRole", data.user?.role || "");
-        localStorage.setItem("userPermission", data.user?.permission || "read");
-
-        setMsg(true, "Login successful ✅ Redirecting...");
-        window.location.href = "dashboard.html";
-      } catch (err) {
-        setMsg(false, "Network/API error: " + err.message);
-      }
-    });
+    setMsg(true, "Login successful ✅ Redirecting...");
+    window.location.href = "dashboard.html";
+  } catch (err) {
+    setMsg(false, "Network/API error: " + err.message);
+  }
+});
   </script>
 </body>
 </html>

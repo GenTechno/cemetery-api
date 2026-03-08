@@ -3,14 +3,20 @@ import pg from "pg";
 
 const { Pool } = pg;
 
-export const pool = new Pool({
-  host: process.env.PGHOST,
-  port: Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
+const connectionString = (process.env.DATABASE_URL || "").trim();
 
-  // Azure PostgreSQL REQUIRES SSL
-  ssl: { rejectUnauthorized: false },
-});
-
+export const pool = new Pool(
+  connectionString
+    ? {
+        connectionString,
+        ssl: { rejectUnauthorized: false },
+      }
+    : {
+        host: process.env.PGHOST,
+        port: Number(process.env.PGPORT || 5432),
+        database: process.env.PGDATABASE,
+        user: process.env.PGUSER,
+        password: process.env.PGPASSWORD,
+        ssl: { rejectUnauthorized: false },
+      }
+);

@@ -607,30 +607,26 @@
 /* =========================
    CONFIG + API  (MEETING-PROOF)
 ========================= */
+const DEFAULT_API_BASE =
+  window.location.protocol === "file:"
+    ? "http://localhost:3000"
+    : window.location.origin;
 
-/**
- * Default API (what you usually run for demos):
- * - If you run server on SAME laptop: use http://127.0.0.1:3000
- * - If you run server on LAN IP: set it manually once in localStorage
- */
-const DEFAULT_API_BASE = "http://127.0.0.1:3000";  // safer than localhost
+const RAW_SAVED_API_BASE = (localStorage.getItem("API_BASE") || "").trim();
 
-// Read saved API_BASE (you can set it once from a settings button)
-const SAVED_API_BASE = localStorage.getItem("API_BASE");
+// On live HTTPS pages, ignore any saved http:// value
+const SAVED_API_BASE =
+  window.location.protocol === "https:"
+    ? (RAW_SAVED_API_BASE.startsWith("https://") ? RAW_SAVED_API_BASE : "")
+    : RAW_SAVED_API_BASE;
 
-// Use saved value, else use default local API.
-// IMPORTANT: Do NOT auto-build from location.hostname (breaks on client WiFi).
-const API_BASE = (SAVED_API_BASE && SAVED_API_BASE.trim()) ? SAVED_API_BASE.trim() : DEFAULT_API_BASE;
+const API_BASE = SAVED_API_BASE || DEFAULT_API_BASE;
 
 const MAX_PLOTS_PER_CEMETERY = 20;
 
 /* ---------- Helpers ---------- */
-function getToken() { return localStorage.getItem("authToken"); }
-
-function requireLogin() {
-  const token = getToken();
-  if (!token) { window.location.href = "login.html"; return null; }
-  return token;
+function getToken() {
+  return localStorage.getItem("authToken");
 }
 
 /**
