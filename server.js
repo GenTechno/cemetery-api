@@ -277,7 +277,8 @@ app.get("/health", async (req, res) => {
       ok: false,
       api: true,
       db: false,
-      error: e.message || "Database connection failed"
+      error: e.message || "Database connection failed",
+      code: e.code || null
     });
   }
 });
