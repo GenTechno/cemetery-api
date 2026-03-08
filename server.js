@@ -264,14 +264,15 @@ app.post("/api/auth/login", async (req, res) => {
 -------------------------------------------------- */
 app.get("/health", async (req, res) => {
   try {
-    await pool.query("SELECT NOW()");
+    const result = await pool.query("SELECT NOW() AS now");
     res.status(200).json({
       ok: true,
       api: true,
-      db: true
+      db: true,
+      now: result.rows[0]?.now || null
     });
   } catch (e) {
-    console.error("Health check failed:", e);
+    console.error("HEALTH ERROR:", e);
     res.status(500).json({
       ok: false,
       api: true,
