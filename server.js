@@ -281,6 +281,14 @@ app.get("/health", async (req, res) => {
     });
   }
 });
+
+app.get("/healthz", (req, res) => {
+  res.status(200).json({
+    ok: true,
+    route: "healthz",
+    marker: "NEW-CODE-TEST-2026-03-08"
+  });
+});
 /* --------------------------------------------------
    CEMETERIES
 -------------------------------------------------- */
@@ -738,6 +746,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 /* --------------------------------------------------
    START SERVER
 -------------------------------------------------- */
+console.log("NEW-CODE-TEST-2026-03-08 server started");
+
 app.listen(PORT, "0.0.0.0", async () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`App mode = ${APP_MODE} (isDemo=${isDemo})`);
